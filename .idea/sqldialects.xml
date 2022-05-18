@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SqlDialectMappings">
+    <file url="file://$PROJECT_DIR$/../voter_analytics/data/test_voter_history_ingest.py" dialect="SQLite" />
+    <file url="file://$PROJECT_DIR$/../voter_analytics/data/test_voter_list_ingest.py" dialect="SQLite" />
+    <file url="file://$PROJECT_DIR$/../voter_analytics/data/voter_history_ingest.py" dialect="SQLite" />
+    <file url="file://$PROJECT_DIR$/../voter_analytics/data/voter_list_ingest.py" dialect="SQLite" />
+    <file url="file://$PROJECT_DIR$/../voter_analytics/data/voterdb.py" dialect="SQLite" />
+    <file url="PROJECT" dialect="SQLite" />
+  </component>
+</project>
