@@ -12,6 +12,9 @@ class NameNormalizer:
     VAN_PATTERN = re.compile(r'(\w+) VAN[\s-]?(\w+)$')
     WHITE_SPACE_PATTERN = re.compile(r'\s+')
 
+    def is_compound_name(self, name):
+        return self.CONJUNCTION_PATTERN.fullmatch(name) is not None
+
     def standarize_name_to_level_1(self, name):
         """
         Standarize a name by replacing commas and periods.

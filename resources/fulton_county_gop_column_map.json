@@ -1,0 +1,17 @@
+{
+  "street_address": "[Address | Primary | Line 1]",
+  "apt_no": "[Address | Primary | Line 2]",
+  "city": "[Address | Primary | City]",
+  "state": "[Address | Primary | State]",
+  "zipcode": "[Address | Primary | Zip]",
+  "country": "[Address | Primary | Country]",
+  "contact_name": "[Contact Name]",
+  "first_name": "[Name | First]",
+  "last_name": "[Name | Last]",
+  "precinct_id": "Precinct Number",
+  "gender": "Sex",
+  "hse": "State House District",
+  "sen": "State Senate District",
+  "voter_id": "State Voter ID",
+  "cng": "US Congressional District"
+}

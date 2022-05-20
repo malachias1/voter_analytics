@@ -7,6 +7,7 @@ from data.voterdb import VoterDb
 from util.addresses import StreetNameNormalizer
 import sqlite3 as sql
 
+
 class IngestVoterList(Pathes):
     ZIPCODE = re.compile(r'(\d\d\d\d\d)(?:-)?(\d\d\d\d)?')
 

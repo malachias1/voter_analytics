@@ -1,161 +1,365 @@
+import json
+
 from data.voterdb import VoterDb
 from data.voter_list_ingest import IngestVoterList
 from util.addresses import StreetNameNormalizer
 from util.names import NameNormalizer
 import pandas as pd
+from pathlib import Path
 import numpy as np
+import sys
 
 
 class VoterMatch:
-    COLUMNS = ['voter_id', 'last_name',
-               'first_name', 'house_number',
-               'street_name', 'apt_no', 'city', 'zipcode',
-               'plus4', 'county_code', 'precinct_id', 'cng',
-               'sen', 'hse']
+    def __init__(self, root_dir, column_map_path):
+        self.column_map_path = Path(column_map_path)
+        try:
+            with self.column_map_path.open('r') as f:
+                self.column_map = json.load(f)
+            self.sn = StreetNameNormalizer()
+            self.nn = NameNormalizer()
+            self.db = VoterDb(root_dir)
+            self.df = None
+        except FileNotFoundError as _:
+            print(f'ERROR: Column mapping file, "{column_map_path}", not found',
+                  file=sys.stderr)
+            return
+        except json.JSONDecodeError as _:
+            print(f'ERROR: Column mapping file is not a valid JSON file.',
+                  file=sys.stderr)
+            return
 
-    def __init__(self, root_dir):
-        self.sn = StreetNameNormalizer()
-        self.nn = NameNormalizer()
-        self.db = VoterDb(root_dir)
-        self.matched_rows = None
-        self.unmatchable = None
-        self.matchable_rows = None
-        self.name_idx = None
-        self.first_name_idx = None
-        self.last_name_idx = None
-        self.street_address_idx = None
-        self.zipcode_idx = None
-
-    def match(self, df, strategy):
-        self.matched_rows = pd.DataFrame(columns=self.COLUMNS, dtype=str)
-        # Remove clearly unmatchable records that are missing
-        # essential information
-        mask = (df.zipcode.isna() |
-                df.street_address.apply(lambda x: not self.sn.is_street_address(x)))
-        if strategy.startswith('name'):
-            self.name_idx = df.columns.get_loc('name')
-            mask = mask | df.name.isna()
-        elif strategy.startswith('split name'):
-            self.last_name_idx = df.columns.get_loc('last_name')
-            self.first_name_idx = df.columns.get_loc('first_name')
-            mask = mask | df.first_name.isna() | df.last_name.isna()
-        self.unmatchable = df[mask]
-
-        # Get indexes for match columns
-        self.street_address_idx = df.columns.get_loc('street_address')
-        self.zipcode_idx = df.columns.get_loc('zipcode')
-
-        # Get a dataframe of potentially matchable columns
-        self.matchable_rows = df[~mask].reset_index(drop=True)
-        self.matchable_rows = self.matchable_rows.assign(reason=np.NaN)
-        n = len(self.matchable_rows)
-        for i in range(0, n):
-            row = self.matchable_rows.iloc[i]
-            self.match_row(i, row, strategy=strategy)
-        match_count = len(self.matched_rows)
-        self.matched_rows = self.matched_rows.drop_duplicates()
-        duplicate_count = match_count - len(self.matched_rows)
-        return (self.matched_rows, self.matchable_rows[self.matchable_rows.reason.notna()],
-                self.unmatchable, duplicate_count)
-
-    def update_reason(self, i, msg):
-        priors = self.matchable_rows.at[i, 'reason']
-        priors = priors.split(',') if pd.notna(priors) else []
-        priors.append(msg)
-        priors = ','.join(priors)
-        self.matchable_rows.at[i, 'reason'] = priors
-
-    def match_row(self, i, row, strategy='name'):
-        """
-        Try to match a row. Sometimes the given first name is really the middle
-        name. If retry_middle is true try matching the middle and last name.
-        :param i: index into matchable rows
-        :param row:
-        :param strategy:
-        :return: number of matches
-        """
-        # Get first and last name from normalized name.
-        # If the normalized name is one word, skip it.
-        # This approach generally does not work
-        # for names with leading "Van" or "Van Der". The voter
-        # list does not have a standard.
-        # normalize the name. normalize returns a tuple
-        # of names because sometimes names are entered as "Bob and Kathy".
-        split_names = []
-        if strategy.startswith('name'):
-            names = self.nn.normalize(row[self.name_idx])
-            for n in names:
-                parts = n.split()
-                if len(parts) < 2:
-                    self.update_reason(i, f'{n} is not a first and last name')
-                    return 0
-                split_names.append((parts[0], parts[-1]))
-        elif strategy.startswith('split name'):
-            first_names = self.nn.normalize(row[self.first_name_idx])
-            last_name = self.nn.normalize(row[self.last_name_idx])
-            for n in first_names:
-                split_names.append((n, last_name[-1]))
+    def get_street_address(self, i):
+        column_name = self.column_map.get("street_address", None)
+        if column_name is not None:
+            return self.df.at[i, column_name]
         else:
-            raise ValueError(f'Unknown strategy {strategy}')
-        retry_middle = strategy.endswith('retry middle')
-        count = 0
-        for k, (first_name, last_name) in enumerate(split_names):
-            success, msg = self.match_row_for_name(i, row, first_name, last_name, retry_middle=retry_middle)
-            if not success:
-                self.update_reason(i, msg)
+            return None
+
+    def get_house_number(self, i):
+        street_address = self.get_street_address(i)
+        house_number, _ = self.sn.street_address_split(street_address)
+        return house_number
+
+    def get_apt_no(self, i):
+        column_name = self.column_map.get("apt_no", None)
+        if column_name is not None:
+            return self.df.at[i, column_name]
+        else:
+            return None
+
+    def get_city(self, i):
+        column_name = self.column_map.get("city", None)
+        if column_name is not None:
+            return self.df.at[i, column_name]
+        else:
+            return None
+
+    def get_state(self, i):
+        column_name = self.column_map.get("state", None)
+        if column_name is not None:
+            return self.df.at[i, column_name]
+        else:
+            return None
+
+    def get_zipcode(self, i):
+        column_name = self.column_map.get("zipcode", None)
+        if column_name is not None:
+            return self.df.at[i, column_name]
+        else:
+            return None
+
+    def get_zipcode_plus4(self, i):
+        return IngestVoterList.zip_plus4(self.get_zipcode(i))
+
+    def get_country(self, i):
+        column_name = self.column_map.get("country", None)
+        if column_name is not None:
+            return self.df.at[i, column_name]
+        else:
+            return None
+
+    def get_contact_name(self, i):
+        column_name = self.column_map.get("contact_name", None)
+        if column_name is not None:
+            return self.df.at[i, column_name]
+        else:
+            return None
+
+    def get_first_name(self, i):
+        column_name = self.column_map.get("first_name", None)
+        if column_name is not None:
+            return self.df.at[i, column_name]
+        else:
+            return None
+
+    def get_last_name(self, i):
+        column_name = self.column_map.get("last_name", None)
+        if column_name is not None:
+            return self.df.at[i, column_name]
+        else:
+            return None
+
+    def get_precinct_id(self, i):
+        column_name = self.column_map.get("precinct_id", None)
+        if column_name is not None:
+            return self.df.at[i, column_name]
+        else:
+            return None
+
+    def get_gender(self, i):
+        column_name = self.column_map.get("gender", None)
+        if column_name is not None:
+            return self.df.at[i, column_name]
+        else:
+            return None
+
+    def get_hse(self, i):
+        column_name = self.column_map.get("hse", None)
+        if column_name is not None:
+            return self.df.at[i, column_name]
+        else:
+            return None
+
+    def get_sen(self, i):
+        column_name = self.column_map.get("sen", None)
+        if column_name is not None:
+            return self.df.at[i, column_name]
+        else:
+            return None
+
+    def get_voter_id(self, i):
+        column_name = self.column_map.get("voter_id", None)
+        if column_name is not None:
+            return self.df.at[i, column_name]
+        else:
+            return None
+
+    def get_cng(self, i):
+        column_name = self.column_map.get("cng", None)
+        if column_name is not None:
+            return self.df.at[i, column_name]
+        else:
+            return None
+
+    def set_street_address(self, i, house_number, street_name):
+        street_address = f'{house_number} {street_name.title()}'
+        column_name = self.column_map.get("street_address", None)
+        if column_name is not None:
+            self.df.at[i, column_name] = street_address
+
+    def set_apt_no(self, i, value):
+        column_name = self.column_map.get("apt_no", None)
+        if column_name is not None:
+            self.df.at[i, column_name] = value
+
+    def set_city(self, i, value):
+        column_name = self.column_map.get("city", None)
+        if column_name is not None:
+            self.df.at[i, column_name] = value.title()
+
+    def set_state(self, i, value):
+        column_name = self.column_map.get("state", None)
+        if column_name is not None:
+            self.df.at[i, column_name] = value.title()
+
+    def set_zipcode(self, i, zipcode, plus4):
+        zipcode = f'{zipcode}-{plus4}' if plus4 is not None else zipcode
+        column_name = self.column_map.get("zipcode", None)
+        if column_name is not None:
+            self.df.at[i, column_name] = zipcode
+
+    def set_country(self, i, value):
+        column_name = self.column_map.get("country", None)
+        if column_name is not None:
+            self.df.at[i, column_name] = value.title()
+
+    def set_name(self, i, first_name, last_name):
+        self.set_first_name(i, first_name)
+        self.set_last_name(i, last_name)
+        self.set_contact_name(i, first_name, last_name)
+
+    def set_contact_name(self, i, first_name, last_name):
+        column_name = self.column_map.get("contact_name", None)
+        if column_name is not None:
+            self.df.at[i, column_name] = f'{first_name} {last_name}'.title()
+
+    def set_first_name(self, i, value):
+        column_name = self.column_map.get("first_name", None)
+        if column_name is not None:
+            self.df.at[i, column_name] = value.title()
+
+    def set_last_name(self, i, value):
+        column_name = self.column_map.get("last_name", None)
+        if column_name is not None:
+            self.df.at[i, column_name] = value.title()
+
+    def set_precinct_id(self, i, value):
+        column_name = self.column_map.get("precinct_id", None)
+        if column_name is not None:
+            self.df.at[i, column_name] = value
+
+    def set_gender(self, i, value):
+        column_name = self.column_map.get("gender", None)
+        if column_name is not None:
+            self.df.at[i, column_name] = value
+
+    def set_hse(self, i, value):
+        column_name = self.column_map.get("hse", None)
+        if column_name is not None:
+            self.df.at[i, column_name] = value
+
+    def set_sen(self, i, value):
+        column_name = self.column_map.get("sen", None)
+        if column_name is not None:
+            self.df.at[i, column_name] = value
+
+    def set_voter_id(self, i, value):
+        column_name = self.column_map.get("voter_id", None)
+        if column_name is not None:
+            self.df.at[i, column_name] = value
+
+    def set_cng(self, i, value):
+        column_name = self.column_map.get("cng", None)
+        if column_name is not None:
+            self.df.at[i, column_name] = value
+
+    def is_matchable(self, i):
+        return (pd.notna(self.get_street_address(i)) &
+                pd.notna(self.get_zipcode(i)) &
+                pd.notna(self.get_contact_name(i)) &
+                pd.notna(self.get_first_name(i)) &
+                pd.notna(self.get_last_name(i)))
+
+    def is_compound_name(self, i):
+        return (self.nn.is_compound_name(self.get_contact_name(i)) |
+                self.nn.is_compound_name(self.get_first_name(i)))
+
+    def is_street_address(self, i):
+        return self.sn.is_street_address(self.get_street_address(i))
+
+    def match(self, p, log_path=None):
+        try:
+            self.df = pd.read_csv(p, dtype=str)
+            if log_path is None:
+                self.match_with_log(sys.stderr)
             else:
-                count += 1
-        return count
+                with log_path.open('w') as fo:
+                    self.match_with_log(fo)
+            return self.df
+        except FileNotFoundError as _:
+            print(f'ERROR: Input file, "{str(p)}", not found',
+                  file=fo)
 
-    def match_row_for_name(self, i, row, first_name, last_name, retry_middle=False):
-        """
-        Try to match a row. Sometimes the given first name is really the middle
-        name. If retry_middle is true try matching the middle and last name.
-        :param i: index into matchable rows
-        :param row:
-        :param first_name: a voter first name
-        :param last_name: a voter last name
-        :param retry_middle:
-        :return: success and a message if fail
-        """
-        # Match first, last name, zip code, and house number.
-        # Name matching is complicated by the fact that
-        # the first name is not always the one found
-        # in the voter list (e.g., Rick versus Richard)
-        zipcode = row[self.zipcode_idx]
-        street_address = row[self.street_address_idx]
-        if retry_middle:
-            matches = self.db.get_voter_by_middle_name(first_name, last_name)
-        else:
-            matches = self.db.get_voter_by_name(first_name, last_name)
+    def match_with_log(self, fo):
+        matched = 0
+        for i in range(0, len(self.df)):
+            # Skip clearly unmatchable rows that are missing
+            # essential information
+            if not self.is_matchable(i):
+                print(f'Row[{i+1}]-ERROR: Skipped, missing essential information!',
+                      file=fo)
+                continue
+            # Skip rows that contain names like "Bob and Kathy" or
+            # "Bob & Kathy"
+            if i == 51:
+                print(i)
+            if self.is_compound_name(i):
+                print(f'Row[{i+1}]-ERROR: Name, "{self.get_contact_name(i)}" or "{self.get_first_name(i)}", '
+                      f'refers to more than one person!',
+                      file=fo)
+                continue
+            # Skip rows that have street address with no house number
+            house_number = self.get_house_number(i)
+            if house_number is None:
+                print(f'Row[{i+1}]-ERROR: Street address, "{self.get_street_address(i)}", has no house number!',
+                      file=fo)
+                continue
+            # Skip rows that have a bad zipcode (not 12345, 12345-1234, 123451234)
+            zipcode, _ = self.get_zipcode_plus4(i)
+            if zipcode is None:
+                print(f'Row[{i+1}]-ERROR: Invalid zip code format, "{self.get_zipcode(i)}"!',
+                      file=fo)
+                continue
 
-        if len(matches) > 0:
-            for j in range(len(matches)):
-                voter_id = matches.iloc[j, 0]
-                address = self.db.get_residence_address_for_voter(voter_id)
-                zipcode, _ = IngestVoterList.zip_plus4(zipcode)
-                if zipcode != address.zipcode.iloc[0]:
+            # Try first and last name fields first
+            first_name = self.nn.normalize(self.get_first_name(i))[0]
+            last_name = self.nn.normalize(self.get_last_name(i))[-1]
+            matches = self.db.voter_search(first_name, last_name, house_number, zipcode)
+
+            if len(matches) == 0:
+                # well that didn't work
+                # try contact name.
+                # There should be one entry
+                names = self.nn.normalize(self.get_contact_name(i))
+                name = names[0].split()
+                first_name = name[0]
+                last_name = name[-1]
+                matches = self.db.voter_search(first_name, last_name, house_number, zipcode)
+
+                if len(matches) == 0:
+                    # Still no joy, skip it.
+                    print(
+                        f'Row[{i+1}]-ERROR: Unable to find match for {first_name} {last_name} with zip code '
+                        f'{zipcode} and house number {house_number}!',
+                        file=fo)
                     continue
-                house_number, street_name = self.sn.street_address_split(street_address)
-                if house_number != address.house_number.iloc[0]:
-                    continue
-                record = {
-                    'voter_id': voter_id,
-                    'last_name': last_name,
-                    'first_name': first_name,
-                    'house_number': house_number,
-                    'street_name': address.street_name.iloc[0],
-                    'apt_no': address.apt_no.iloc[0],
-                    'city': address.city.iloc[0], 'zipcode': address.zipcode.iloc[0],
-                    'plus4': address.plus4.iloc[0],
-                    'county_code': address.county_code.iloc[0],
-                    'precinct_id': self.db.get_voter_precinct_id(voter_id),
-                    'cng': self.db.get_voter_cng(voter_id),
-                    'sen': self.db.get_voter_sen(voter_id),
-                    'hse': self.db.get_voter_hse(voter_id)
-                }
-                self.matched_rows = pd.concat([self.matched_rows, pd.Series(record).to_frame().T])
-                return True, None
-            return False, f'No matching zip code or house number for {first_name} {last_name}'
-        else:
-            return False, f'No voters matching {first_name} {last_name}'
+            # Check for multiple matches
+            if len(matches) > 1:
+                print(
+                    f'Row[{i+1}]-ERROR: Multiple matches for {first_name} {last_name} with zip code '
+                    f'{zipcode} and house number {house_number}!',
+                    file=fo)
+                continue
+            # One match. Yea! Update the record
+            voter_id = matches.voter_id[0]
+            last_name = matches.last_name[0]
+            first_name = matches.first_name[0]
+
+            # get various address stuff
+            address = self.db.get_residence_address_for_voter(voter_id)
+            street_name = address.street_name[0]
+            apt_no = address.apt_no[0]
+            city = address.city[0]
+            zipcode = address.zipcode[0]
+            plus4 = address.plus4[0]
+
+            # get demographics
+            demographics = self.db.get_voter_demographics_for_voter(voter_id)
+            gender = demographics.gender[0]
+
+            # get various political districts
+            precinct_id = self.db.get_voter_precinct_id(voter_id)
+            cng = self.db.get_voter_cng(voter_id)
+            sen = self.db.get_voter_sen(voter_id)
+            hse = self.db.get_voter_hse(voter_id)
+
+            # update row
+            self.set_contact_name(i, first_name, last_name)
+            self.set_voter_id(i, voter_id)
+            self.set_first_name(i, first_name)
+            self.set_last_name(i, last_name)
+            self.set_gender(i, gender)
+
+            self.set_street_address(i, house_number, street_name)
+            self.set_apt_no(i, apt_no)
+            self.set_zipcode(i, zipcode, plus4)
+            self.set_city(i, city)
+            # Since this the residence address in Georgia
+            # set state and country to Georgia
+            self.set_state(i, 'Georgia')
+            self.set_country(i, 'United States')
+
+            self.set_precinct_id(i, precinct_id)
+            self.set_hse(i, hse)
+            self.set_sen(i, sen)
+            self.set_cng(i, cng)
+            matched += 1
+            print(
+                f'Row[{i + 1}]-: Successful match for {first_name} {last_name} with zip code '
+                f'{zipcode} and house number {house_number}!',
+                file=fo)
+        print(
+            f'\nRow Count: {len(self.df)}, Matched Row Count: {matched}, Match %: {matched/len(self.df):.2f}',
+            file=fo)
+        return self.df

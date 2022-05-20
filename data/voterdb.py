@@ -21,6 +21,7 @@ class VoterDb(Pathes):
             schema_ddl = f.read()
         cur = self.con.cursor()
         for stmt in schema_ddl.split(';'):
+            print(stmt)
             cur.execute(stmt)
         self.con.commit()
 
@@ -162,3 +163,39 @@ class VoterDb(Pathes):
 
     def get_voter_demographics(self):
         return pd.read_sql_query(f"select * from voter_demographics", self.con)
+
+    def get_voter_demographics_for_voter(self, voter_id):
+        df = pd.read_sql_query(f"select * from voter_demographics where voter_id='{voter_id}'", self.con)
+        if len(df) > 0:
+            return df.iloc[0]
+        return None
+
+    def rebuild_search_table(self):
+        cur = self.con.cursor()
+        cur.execute('DELETE FROM voter_search;')
+        self.con.commit()
+        df1 = pd.read_sql_query(f"select * from address_voter", self.con)
+        df2 = pd.read_sql_query(f"select voter_id, last_name, first_name, middle_name from voter_name", self.con)
+        df3 = pd.read_sql_query(f"select address_id, house_number, zipcode from residence_address", self.con)
+        df = df1.merge(df2, how='inner', on=['voter_id'])
+        print(df.shape)
+        df = df.merge(df3, how='inner', on=['address_id'])
+        print(df.shape)
+        print(df.columns)
+        # note the order of address_id and voter_id
+        stmt = f"""
+        replace into voter_search 
+            (address_id, voter_id, last_name, first_name, middle_name, house_number, zipcode) 
+        values (?,?,?,?,?,?,?)"""
+        cur = self.con.cursor()
+        df.apply(lambda row: cur.execute(stmt, (row[0], row[1], row[2], row[3], row[4], row[5], row[6])), axis=1)
+        self.con.commit()
+
+    def voter_search(self, first_name, last_name, house_number, zipcode):
+        df = pd.read_sql_query(f"""
+            select 
+                address_id, voter_id, last_name, first_name, middle_name, house_number, zipcode 
+            from voter_search where last_name=? and house_number=? and zipcode=?""",
+                               self.con, params=(last_name, house_number, zipcode))
+        return pd.concat([df[df.first_name == first_name], df[df.middle_name == first_name]], ignore_index=True)
+

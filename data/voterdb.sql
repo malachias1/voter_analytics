@@ -40,6 +40,19 @@ CREATE TABLE IF NOT EXISTS residence_address
     lon          real
 );
 
+CREATE TABLE IF NOT EXISTS voter_search
+(
+    voter_id    text primary key,
+    address_id integer not null,
+    last_name   text not null,
+    first_name  text not null,
+    middle_name text,
+    house_number text not null,
+    zipcode      text not null
+);
+
+CREATE INDEX IF NOT EXISTS VOTER_SEARCH_IDX ON voter_search (last_name, house_number, zipcode);
+
 CREATE TABLE IF NOT EXISTS address_voter
 (
     address_id integer not null,
