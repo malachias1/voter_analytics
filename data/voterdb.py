@@ -199,3 +199,7 @@ class VoterDb(Pathes):
                                self.con, params=(last_name, house_number, zipcode))
         return pd.concat([df[df.first_name == first_name], df[df.middle_name == first_name]], ignore_index=True)
 
+    def voter_history_for_date(self, year, month, day):
+        date = f'{year}{month:02d}{day:02d}'
+        print(date)
+        return pd.read_sql_query(f"select * from voter_history where date='{date}'", self.con)

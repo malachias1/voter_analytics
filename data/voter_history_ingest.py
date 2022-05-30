@@ -1,6 +1,7 @@
 import pandas as pd
 from data.pathes import Pathes
 from data.voterdb import VoterDb
+from pathlib import Path
 
 
 class IngestVoterHistory(Pathes):
@@ -32,13 +33,18 @@ class IngestVoterHistory(Pathes):
     def con(self):
         return self.db.con
 
-    def read_csv(self, year):
-        p = self.voter_history_path(year)
-        return pd.read_fwf(p, widths=self.FIELD_WIDTH, header=None, names=self.COL_NAMES,
-                           dtype=self.COL_TYPES, true_values=['Y'], false_values=['N'])
+    def read_csv(self, year, voter_history_dir=None):
+        if voter_history_dir is not None:
+            p = Path(voter_history_dir, f'{year}.TXT').expanduser()
+        else:
+            p = self.voter_history_path(year)
+        df = pd.read_fwf(p, widths=self.FIELD_WIDTH, header=None, names=self.COL_NAMES,
+                         dtype=self.COL_TYPES, true_values=['Y'], false_values=['N'])
+        df.loc[df.type.isna(), 'type'] = '999'
+        return df
 
-    def ingest_voter_history_year(self, year):
-        df = self.read_csv(year)
+    def ingest_voter_history_year(self, year, voter_history_dir=None):
+        df = self.read_csv(year, voter_history_dir)
         stmt = f'replace into voter_history (county_id, voter_id, date, type, party, ' \
                f'absentee, provisional, supplemental) values (?, ?, ?, ?, ?, ?, ?, ?)'
         cur = self.con.cursor()
