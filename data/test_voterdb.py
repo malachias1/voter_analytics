@@ -44,7 +44,7 @@ class TestVoterDb(unittest.TestCase):
         table. Make sure key column is there.
         """
 
-        dfdb = self.sut.get_residence_addresses('033')
+        dfdb = self.sut.get_residence_addresses_for_county('033')
         self.assertEqual(0, len(dfdb))
         self.assertTrue('key' in dfdb.columns)
 
@@ -124,7 +124,7 @@ class TestVoterDb(unittest.TestCase):
         cur.execute(stmt, (0, '033', '1234', 'HAPPY ST', '12', 'EVANS', 'GA', '12345', '2020'))
         self.sut.con.commit()
 
-        df = self.sut.get_residence_addresses('033')
+        df = self.sut.get_residence_addresses_for_county('033')
         self.assertEqual(1, len(df))
         self.assertEqual(0, df.iloc[0, 0])
         self.assertEqual('033', df.iloc[0, 1])

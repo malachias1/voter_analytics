@@ -30,7 +30,7 @@ class IngestVoterList(Pathes):
         return self.db.get_mailing_addresses()
 
     def get_residence_addresses(self, county_code):
-        return self.db.get_residence_addresses(county_code)
+        return self.db.get_residence_addresses_for_county(county_code)
 
     def get_voter_names(self):
         return self.db.get_voter_names()

@@ -1,3 +1,36 @@
+CREATE TABLE IF NOT EXISTS county_details
+(
+    county_code     text not null,
+    county_fp       text not null,
+    county_name     text not null
+);
+
+CREATE TABLE IF NOT EXISTS precinct_details
+(
+    id              text primary key,
+    year            integer not null,
+    county_code     text not null,
+    precinct_id     text not null,
+    precinct_name   text not null
+);
+
+CREATE TABLE IF NOT EXISTS election_results
+(
+    county_code     text not null,
+    precinct_id     text not null,
+    precinct_name   text not null,
+    votes           integer not null,
+    election_date   text not null,
+    contest         text not null,
+    choice          text not null,
+    vote_type       text not null,
+    is_question     text not null,
+    incumbent       text not null,
+    party       text not null
+);
+
+CREATE INDEX IF NOT EXISTS election_results_idx ON election_results (election_date, contest);
+
 CREATE TABLE IF NOT EXISTS voter_history
 (
     voter_id     text not null,

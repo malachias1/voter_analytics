@@ -21,7 +21,6 @@ class VoterDb(Pathes):
             schema_ddl = f.read()
         cur = self.con.cursor()
         for stmt in schema_ddl.split(';'):
-            print(stmt)
             cur.execute(stmt)
         self.con.commit()
 
@@ -104,8 +103,12 @@ class VoterDb(Pathes):
             return df.iloc[0, 0]
         return None
 
-    def get_residence_addresses(self, county_code):
-        df = pd.read_sql_query(f"select * from residence_address where county_code='{county_code}'", self.con)
+    def get_residence_addresses(self):
+        df = pd.read_sql_query(f"select * from residence_address", self.con)
+        return self.add_address_key(df, self.as_residence_address_key)
+
+    def get_residence_addresses_for_county(self, county_code):
+        return pd.read_sql_query(f"select * from residence_address where county_code='{county_code}'", self.con)
         return self.add_address_key(df, self.as_residence_address_key)
 
     def get_voter_cng(self, voter_id):
@@ -178,10 +181,7 @@ class VoterDb(Pathes):
         df2 = pd.read_sql_query(f"select voter_id, last_name, first_name, middle_name from voter_name", self.con)
         df3 = pd.read_sql_query(f"select address_id, house_number, zipcode from residence_address", self.con)
         df = df1.merge(df2, how='inner', on=['voter_id'])
-        print(df.shape)
         df = df.merge(df3, how='inner', on=['address_id'])
-        print(df.shape)
-        print(df.columns)
         # note the order of address_id and voter_id
         stmt = f"""
         replace into voter_search 
@@ -201,5 +201,17 @@ class VoterDb(Pathes):
 
     def voter_history_for_date(self, year, month, day):
         date = f'{year}{month:02d}{day:02d}'
-        print(date)
         return pd.read_sql_query(f"select * from voter_history where date='{date}'", self.con)
+
+    def get_voter_history_summary(self):
+        return pd.read_sql_query(f"select * from voter_history_summary", self.con)
+
+    def get_precinct_id_max(self):
+        df = pd.read_sql_query(f"select max(id) from precinct_details", self.con)
+        if len(df) > 0 and df.iloc[0, 0] is not None:
+            return df.iloc[0, 0]
+        return 0
+
+    def get_precinct_details(self, year):
+        return pd.read_sql_query(f"select id, county_code, precinct_id, precinct_name from precinct_details "
+                                 f"where year={year}", self.con)
