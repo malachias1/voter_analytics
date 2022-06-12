@@ -1,26 +1,111 @@
 import unittest
-from pathlib import Path
+import numpy as np
 import pandas as pd
-import sqlite3 as sql
 from segmentation.voter_segmentation import VoterSegmentation
-from data.voterdb import VoterDb
+from datetime import datetime, timedelta
 
 
 class TestVoterSegmentation(unittest.TestCase):
+    VOTER_HISTORY_COLUMNS = ['voter_id', 'date', 'type', 'party',
+                             'county_id', 'absentee', 'provisional',
+                             'supplemental']
+    D_20110520 = datetime.strptime('20110520', '%Y%m%d')
+    D_20190520 = datetime.strptime('20190520', '%Y%m%d')
+    D_20140520 = datetime.strptime('20140520', '%Y%m%d')
+    D_20201103 = datetime.strptime('20201103', '%Y%m%d')
+    SIMPLE_HISTORY = pd.DataFrame.from_records([
+        ['01', D_20140520, 'P', 'R', '033', 0, 0, 0],
+        ['01', D_20201103, 'G', 'G', '060', 0, 0, 0],
+        ['02', D_20140520, 'P', 'D', '033', 0, 0, 0],
+        ['03', D_20140520, 'P', 'D', '033', 0, 0, 0],
+        ['02', D_20201103, 'G', 'G', '067', 0, 0, 0],
+        ['04', D_20201103, 'G', 'G', '067', 0, 0, 0]
+    ], columns=VOTER_HISTORY_COLUMNS)
+
+    DATE_ADDED = pd.DataFrame.from_records([
+        ['02', D_20110520],
+        ['01', D_20110520],
+        ['04', D_20190520]
+    ], columns=['voter_id', 'date_added'])
+
     def setUp(self):
         self.root_dir = '~/Documents/data'
         self.sut = VoterSegmentation(self.root_dir)
 
-    def test_history_for_election_date(self):
-        df = self.sut.history_for_election_date('20180522', True)
-        self.assertEqual(1, len(df.date.unique()))
-        self.assertEqual(0, df.isna().sum().sum())
+    def test_get_county_info(self):
+        df = self.sut.get_county_info(self.SIMPLE_HISTORY)
+        self.assertEqual(4, len(df.index))
+        self.assertEqual('060', df[df.voter_id == '01'].iloc[0, 1])
+        self.assertEqual('067', df[df.voter_id == '02'].iloc[0, 1])
+        self.assertEqual('033', df[df.voter_id == '03'].iloc[0, 1])
 
-    def test_history(self):
-        df = self.sut.history()
-        # self.assertEqual(9, len(df.date.unique()))
-        # self.assertEqual(0, df.isna().sum().sum())
+    def test_get_first_last(self):
+        df = self.sut.get_first_last(self.SIMPLE_HISTORY)
+        self.assertEqual(4, len(df.index))
+        self.assertEqual(self.D_20140520, df[df.voter_id == '01'].iloc[0, 1])
+        self.assertEqual(self.D_20201103, df[df.voter_id == '01'].iloc[0, 2])
+        self.assertEqual(self.D_20140520, df[df.voter_id == '02'].iloc[0, 1])
+        self.assertEqual(self.D_20201103, df[df.voter_id == '02'].iloc[0, 2])
+        self.assertEqual(self.D_20140520, df[df.voter_id == '03'].iloc[0, 1])
+        self.assertEqual(self.D_20140520, df[df.voter_id == '03'].iloc[0, 2])
+
+    def test_add_missing_records(self):
+        df = self.sut.add_missing_records(self.SIMPLE_HISTORY)
+        self.assertEqual(8, len(df.index))
+        self.assertEqual(2, len(df[df.voter_id == '01'].index))
+        self.assertEqual(2, len(df[df.voter_id == '02'].index))
+        self.assertEqual(2, len(df[df.voter_id == '03'].index))
+        self.assertEqual(1, len(df[(df.voter_id == '03') & (df.date == self.D_20140520)].index))
+        self.assertEqual(1, len(df[(df.voter_id == '03') & (df.date == self.D_20201103)].index))
+        self.assertEqual('DP', df[(df.voter_id == '03') & (df.date == self.D_20140520)].reset_index().loc[0, 'party'])
+        self.assertEqual('XG', df[(df.voter_id == '03') & (df.date == self.D_20201103)].reset_index().loc[0, 'party'])
+        self.assertEqual('GG', df[(df.voter_id == '02') & (df.date == self.D_20201103)].reset_index().loc[0, 'party'])
+
+    def test_pivot(self):
+        df_first_last = self.sut.get_first_last(self.SIMPLE_HISTORY)
+        df = self.sut.add_missing_records(self.SIMPLE_HISTORY)
+        df = self.sut.pivot(df, df_first_last, self.DATE_ADDED)
+        self.assertIsNotNone(df)
+        self.assertEqual('GG', df.at[3, '2020-11-03'])
+        self.assertTrue(np.isnan(df.at[3, '2014-05-20']))
+        self.assertEqual('GG', df.at[3, '2020-11-03'])
+        self.assertEqual('--', df.at[2, '2020-11-03'])
         print(df)
+
+    def test_add_county(self):
+        df_first_last = self.sut.get_first_last(self.SIMPLE_HISTORY)
+        df_county = self.sut.get_county_info(self.SIMPLE_HISTORY)
+        df = self.sut.add_missing_records(self.SIMPLE_HISTORY)
+        df = self.sut.pivot(df, df_first_last, self.DATE_ADDED)
+        df = self.sut.add_county(df, df_county)
+        self.assertIsNotNone(df)
+        self.assertEqual('060', df.at[0, 'county_id'])
+        self.assertEqual('067', df.at[1, 'county_id'])
+        self.assertEqual('033', df.at[2, 'county_id'])
+        self.assertEqual('067', df.at[3, 'county_id'])
+
+    def test_compute_ops(self):
+        vhs = self.sut.voter_history_summary(limit=10)
+        vhs = self.sut.compute_ops(vhs)
+        self.assertIsNotNone(vhs)
+        print(vhs)
+
+    # def test_date_added(self):
+    #     df = self.sut.get_date_added()
+    #     self.assertIsNotNone(df)
+    #     self.assertEqual(0, df.isna().sum().sum())
+
+    # def test_history_for_election_date(self):
+    #     df = self.sut.history_for_election_date('20180522', True)
+    #     self.assertEqual(1, len(df.date.unique()))
+    #     self.assertEqual(0, df.isna().sum().sum())
+    #
+    #
+    # def test_history(self):
+    #     df = self.sut.history()
+    #     self.assertEqual(9, len(df.date.unique()))
+    #     self.assertEqual(0, df.isna().sum().sum())
+    #     print(df)
 
 
 if __name__ == '__main__':
