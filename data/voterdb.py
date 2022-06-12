@@ -203,8 +203,14 @@ class VoterDb(Pathes):
         date = f'{year}{month:02d}{day:02d}'
         return pd.read_sql_query(f"select * from voter_history where date='{date}'", self.con)
 
-    def get_voter_history_summary(self):
-        return pd.read_sql_query(f"select * from voter_history_summary", self.con)
+    def get_voter_history_summary(self, limit=None):
+        stmt = f"select * from voter_history_summary"
+        if limit is not None:
+            stmt += f' limit {limit}'
+        return pd.read_sql_query(stmt, self.con, dtype="string")
+
+    def get_voter_score(self):
+        return pd.read_sql_query(f"select * from voter_score", self.con)
 
     def get_precinct_id_max(self):
         df = pd.read_sql_query(f"select max(id) from precinct_details", self.con)
