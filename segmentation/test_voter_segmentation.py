@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import pandas as pd
 from segmentation.voter_segmentation import VoterSegmentation
-from datetime import datetime, timedelta
+from datetime import datetime
 
 
 class TestVoterSegmentation(unittest.TestCase):

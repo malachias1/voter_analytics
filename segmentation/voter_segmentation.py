@@ -1,9 +1,9 @@
-import numpy as np
 import pandas as pd
 from data.pathes import Pathes
 from data.voterdb import VoterDb
 from datetime import datetime, timedelta
 import time
+
 
 class VoterSegmentation(Pathes):
     ELECTIONS = [
@@ -113,7 +113,8 @@ class VoterSegmentation(Pathes):
         election_date_types = election_date_types.assign(key=0)
         voters = df[['voter_id']].drop_duplicates()
         voters = voters.assign(key=0)
-        placeholders = voters.merge(election_date_types, on='key', how='outer').drop(columns=['key']).reset_index(drop=True)
+        placeholders = voters.merge(election_date_types, on='key', how='outer').drop(columns=['key'])\
+            .reset_index(drop=True)
         df = df.merge(placeholders, on=['voter_id', 'date', 'type'], how='right').reset_index(drop=True)
         df = df.assign(party=df.loc[:, 'party'].fillna('X'))
         df = df.assign(party=df.party + df.type).drop(columns=['type'])
@@ -128,7 +129,7 @@ class VoterSegmentation(Pathes):
         30 days prior to election.
         :return: voter id and date added
         """
-        vs = self.db.get_voter_status()[['voter_id', 'status', 'date_added']]
+        vs = self.db.voter_status[['voter_id', 'status', 'date_added']]
         vs = vs[vs.status == 'A'].drop(columns=['status']).reset_index(drop=True)
 
         # If date_added is blank assume is proceeds the earliest election.

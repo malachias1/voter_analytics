@@ -1,0 +1,184 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+library(tidycensus)
+library(geojsonsf)
+library(DBI)
+```
+
+```{r}
+# total educational attainment
+total <- get_acs(year = 2020, geography = 'block group',
+                 variables = 'B15003_001', state = 'ga',
+                 geometry = T) %>%
+  select(GEOID, geometry)
+
+total.geometry <- sf_geojson(total, atomise = T)
+
+block_groups <- tibble(GEOID = total$GEOID, geometry = total.geometry) %>%
+  mutate(state = substr(GEOID, 1, 2),
+         county = substr(GEOID, 3, 5),
+         tract = substr(GEOID, 6, 11),
+         block_group = substr(GEOID, 12, 12)) %>%
+  relocate(geometry, .after = block_group)
+
+```
+```{r}
+db <- dbConnect(RSQLite::SQLite(), '~/Documents/data/ga/voter.db')
+```
+```{r}
+dbListTables(db)
+```
+```{r}
+dbGetQuery(db, 'SELECT * FROM voter_name LIMIT 5')
+
+```
+```{r}
+dbWriteTable(db, 'block_groups', block_groups)
+```
+```{r}
+# total educational attainment
+other <- get_acs(year = 2020, geography = 'block group',
+                 variables = c('B15003_001',
+                               "B05009_001E", "B05009_002E", 'B05009_020E',
+                               'B06009_001E', 'B06009_002E', 'B06009_003E', 'B06009_004E', 'B06009_004E'), state = 'ga') %>%
+  mutate(state = substr(GEOID, 1, 2),
+         county = substr(GEOID, 3, 5),
+         tract = substr(GEOID, 6, 11),
+         block_group = substr(GEOID, 12, 12))
+
+other
+```
+```{r}
+# total educational attainment
+other <- get_acs(year = 2020, geography = 'block group',
+                 variables = c("B19013_001E",
+                               'B15003_001E', 'B15003_017E', 'B15003_018E', 'B15003_019E', 'B15003_020E',
+                               'B15003_021E', 'B15003_022E', 'B15003_023E', 'B15003_024E', 'B15003_025E',
+                               'B08134_001E', 'B08134_002E', 'B08134_003E', 'B08134_004E', 'B08134_005E',
+                               'B08134_006E', 'B08134_007E', 'B08134_008E', 'B08134_009E', 'B08134_010E'),
+                 state = 'ga') %>%
+  mutate(state = substr(GEOID, 1, 2),
+         county = substr(GEOID, 3, 5),
+         tract = substr(GEOID, 6, 11),
+         block_group = substr(GEOID, 12, 12)) %>%
+  pivot_wider(names_from = 'variable', values_from = c('estimate', 'moe'))
+
+other
+```
+```{r}
+v20 <- load_variables(2020, "acs5", cache = TRUE)
+
+View(v20)
+```
+```{r}
+attributes <- other %>%
+  select(-NAME)
+
+colnames(attributes) <-
+c('GEOID',
+  'state',
+  'county',
+  'tract',
+  'block_group',
+  'work_travel_time_total',
+  'work_travel_time_less_than_10_minutes',
+  'work_travel_time_10_to_14_minutes',
+  'work_travel_time_15_to_19_minutes',
+  'work_travel_time_20_to_24_minutes',
+  'work_travel_time_25_to_29_minutes',
+  'work_travel_time_30_to_34_minutes',
+  'work_travel_time_35_to_44_minutes',
+  'work_travel_time_45_to_59_minutes',
+  'work_travel_time_60_or_more_minutes',
+  'educational_attainment_total',
+  'educational_attainment_regular_high_school_diploma',
+  'educational_attainment_ged_or_alternative_credential',
+  'educational_attainment_some_college_less_than_1_year',
+  'educational_attainment_some_college_1_or_more_years,_no_degree',
+  'educational_attainment_associates_degree',
+  'educational_attainment_bachelors_degree',
+  'educational_attainment_masters_degree',
+  'educational_attainment_professional_school_degree',
+  'educational_attainment_doctorate_degree',
+  'median_household_income',
+  'work_travel_time_total_moe',
+  'work_travel_time_less_than_10_minutes_moe',
+  'work_travel_time_10_to_14_minutes_moe',
+  'work_travel_time_15_to_19_minutes_moe',
+  'work_travel_time_20_to_24_minutes_moe',
+  'work_travel_time_25_to_29_minutes_moe',
+  'work_travel_time_30_to_34_minutes_moe',
+  'work_travel_time_35_to_44_minutes_moe',
+  'work_travel_time_45_to_59_minutes_moe',
+  'work_travel_time_60_or_more_minutes_moe',
+  'educational_attainment_total_moe',
+  'educational_attainment_regular_high_school_diploma_moe',
+  'educational_attainment_ged_or_alternative_credential_moe',
+  'educational_attainment_some_college_less_than_1_year_moe',
+  'educational_attainment_some_college_1_or_more_years_no_degree_moe',
+  'educational_attainment_associates_degree_moe',
+  'educational_attainment_bachelors_degree_moe',
+  'educational_attainment_masters_degree_moe',
+  'educational_attainment_professional_school_degree_moe',
+  'educational_attainment_doctorate_degree_moe',
+  'median_household_income_moe'
+)
+```
+```{r}
+
+colnames(attributes) <-
+c('GEOID',
+  'state',
+  'county',
+  'tract',
+  'block_group',
+  'work_travel_time_total',
+  'work_travel_time_less_than_10_minutes',
+  'work_travel_time_10_to_14_minutes',
+  'work_travel_time_15_to_19_minutes',
+  'work_travel_time_20_to_24_minutes',
+  'work_travel_time_25_to_29_minutes',
+  'work_travel_time_30_to_34_minutes',
+  'work_travel_time_35_to_44_minutes',
+  'work_travel_time_45_to_59_minutes',
+  'work_travel_time_60_or_more_minutes',
+  'educational_attainment_total',
+  'educational_attainment_regular_high_school_diploma',
+  'educational_attainment_ged_or_alternative_credential',
+  'educational_attainment_some_college_less_than_1_year',
+  'educational_attainment_some_college_1_or_more_years,_no_degree',
+  'educational_attainment_associates_degree',
+  'educational_attainment_bachelors_degree',
+  'educational_attainment_masters_degree',
+  'educational_attainment_professional_school_degree',
+  'educational_attainment_doctorate_degree',
+  'median_household_income',
+  'work_travel_time_total_moe',
+  'work_travel_time_less_than_10_minutes_moe',
+  'work_travel_time_10_to_14_minutes_moe',
+  'work_travel_time_15_to_19_minutes_moe',
+  'work_travel_time_20_to_24_minutes_moe',
+  'work_travel_time_25_to_29_minutes_moe',
+  'work_travel_time_30_to_34_minutes_moe',
+  'work_travel_time_35_to_44_minutes_moe',
+  'work_travel_time_45_to_59_minutes_moe',
+  'work_travel_time_60_or_more_minutes_moe',
+  'educational_attainment_total_moe',
+  'educational_attainment_regular_high_school_diploma_moe',
+  'educational_attainment_ged_or_alternative_credential_moe',
+  'educational_attainment_some_college_less_than_1_year_moe',
+  'educational_attainment_some_college_1_or_more_years_no_degree_moe',
+  'educational_attainment_associates_degree_moe',
+  'educational_attainment_bachelors_degree_moe',
+  'educational_attainment_masters_degree_moe',
+  'educational_attainment_professional_school_degree_moe',
+  'educational_attainment_doctorate_degree_moe',
+  'median_household_income_moe'
+)
+dbWriteTable(db, 'block_group_attributes', attributes)
+```

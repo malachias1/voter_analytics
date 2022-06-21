@@ -5,11 +5,10 @@ import pandas as pd
 from data.pathes import Pathes
 from data.voterdb import VoterDb
 from util.addresses import StreetNameNormalizer
-import sqlite3 as sql
 
 
 class IngestVoterList(Pathes):
-    ZIPCODE = re.compile(r'(\d\d\d\d\d)(?:-)?(\d\d\d\d)?')
+    ZIPCODE = re.compile(r'(\d\d\d\d\d)-?(\d\d\d\d)?')
 
     def __init__(self, root_dir, state='ga'):
         super().__init__(root_dir, state)
@@ -17,8 +16,28 @@ class IngestVoterList(Pathes):
         self.sn = StreetNameNormalizer()
 
     @property
-    def con(self):
-        return self.db.con
+    def address_voter(self):
+        return self.db.voter_residence_address
+
+    @property
+    def mailing_address_voter(self):
+        return self.db.mailing_address_voter
+
+    @property
+    def mailing_addresses(self):
+        return self.db.mailing_addresses
+
+    @property
+    def voter_names(self):
+        return self.db.voter_names
+
+    @property
+    def voter_status(self):
+        return self.db.voter_status
+
+    @property
+    def voter_demographics(self):
+        return self.db.voter_demographics
 
     def as_residence_address_key(self, row):
         return self.db.as_residence_address_key(row)
@@ -26,26 +45,8 @@ class IngestVoterList(Pathes):
     def as_mailing_address_key(self, row):
         return self.db.as_mailing_address_key(row)
 
-    def get_mailing_addresses(self):
-        return self.db.get_mailing_addresses()
-
     def get_residence_addresses(self, county_code):
         return self.db.get_residence_addresses_for_county(county_code)
-
-    def get_voter_names(self):
-        return self.db.get_voter_names()
-
-    def get_voter_status(self):
-        return self.db.get_voter_status()
-
-    def get_voter_demographics(self):
-        return self.db.get_voter_demographics()
-
-    def get_address_voter(self):
-        return self.db.get_residence_address_voter()
-
-    def get_mailing_address_voter(self):
-        return self.db.get_mailing_address_voter()
 
     def read_csv(self, county_code, edition='latest'):
         p = self.voter_list_path(county_code, edition)
@@ -85,12 +86,11 @@ class IngestVoterList(Pathes):
     # noinspection PyUnresolvedReferences
     def as_mailing_address(self, df):
         """
-        Mailing address are different than residence addresses.
+        Mailing address are different from residence addresses.
         Residence addresses are in Georgia whereas mailing addresses
         could be international. Only voters with a mailing address
         different from the residence address will have a mailing
         address.
-
         :param df: a voter list
         :return: dataframe of mailing address of voter
         """
@@ -133,80 +133,90 @@ class IngestVoterList(Pathes):
 
     def ingest(self, edition='latest'):
         for c in self.voter_list_dir.iterdir():
-            df = self.read_csv(c.name, edition)
-            self.ingest_voter_name(df)
+            if re.fullmatch(r'\d+', c.name):
+                print(c.name, end=' ... ')
+                self.ingest_county_voter_list(c.name, edition)
+                print('Done')
 
     def ingest_county_voter_list(self, county_code, edition='latest'):
         df = self.read_csv(county_code, edition)
         self.ingest_voter_name(df)
         self.ingest_voter_status(df)
-        self.ingest_voter_demographics(df)
+        self.replace_multiple_voter_demographics(df)
         self.ingest_residence_address(county_code, df)
         self.ingest_mailing_address(df)
         self.ingest_address_voter_relationship(county_code, df)
         self.ingest_mailing_address_relationship(df)
-        self.ingest_address_district_relationship(county_code, df)
+        self.replace_multiple_voter_cng(df)
+        self.replace_multiple_voter_hse(df)
+        self.replace_multiple_voter_sen(df)
+        self.ingest_precinct_details(county_code, df)
+
+    def ingest_precinct_details(self, county_code, df):
+        """
+        Precinct details are encompassed by a single table,
+        precinct_details. Precincts are updated at the county
+        level. All county precincts are purged and then new
+        precinct details are inserted.
+
+        :param county_code: the county in which precincts
+        are to be updated
+        :param df: a voter list with both address and precinct details
+        :return:
+        """
+        # Run a brief integrity check
+        check = df.county_code.unique()
+        if len(check) > 1:
+            raise ValueError('More than one county code in voter list!')
+        if check[0] != county_code:
+            raise ValueError('County code in voter list different than that given!')
+
+        # Construct a dataframe consisting of unique county_code/precinct_id
+        # combinations. Assign an id to each combination.
+        # Replace county precinct details
+        precinct_details = df[['county_code', 'precinct_id']].drop_duplicates()
+        next_id = self.db.next_precinct_id
+        precinct_details = precinct_details.assign(id=range(next_id, next_id + len(precinct_details.index)))
+        self.replace_multiple_precinct_details(precinct_details)
+
+        # Next, I create voter_id/id combinations, where id
+        # is the same as id above. Need to work on names at some point.
+        # First, create a dataframe with voter_id, county_code, and precinct_id.
+        # Then I merge it with precinct details to get the id.
+        # Finally, replace voter/precinct pairs
+        voter_precinct = df[['voter_id', 'county_code', 'precinct_id']]
+        voter_precinct = voter_precinct.merge(precinct_details, on=['county_code', 'precinct_id'], how='inner')
+        voter_precinct = voter_precinct[['voter_id', 'id']].rename(columns={'id': 'precinct_id'})
+        self.replace_multiple_voter_precinct(voter_precinct)
+        return len(voter_precinct)
 
     def ingest_voter_name(self, df):
-        df1 = df.copy()
-        df1 = df1[['voter_id', 'last_name', 'first_name',
-                   'middle_maiden_name', 'name_suffix',
-                   'name_title']]
-        df1.columns = ['voter_id', 'last_name', 'first_name',
-                       'middle_name', 'name_suffix',
-                       'name_title']
-        df2 = self.get_voter_names()
-        df2 = df2.loc[df2['voter_id'].isin(df1['voter_id'])]
-
-        df = pd.concat([df1, df2])
-        updates = df.drop_duplicates(['voter_id', 'last_name', 'first_name',
-                                      'middle_name', 'name_suffix',
-                                      'name_title'], keep='first')
-        self.replace_voter_name(updates)
-        self.con.commit()
+        df = df.rename(columns={'middle_maiden_name': 'middle_name'})
+        self.replace_multiple_voter_name(df)
 
     def ingest_voter_status(self, df):
-        df1 = df.copy()
-        df1 = df1[['voter_id', 'voter_status', 'status_reason',
-                   'date_added', 'date_changed',
-                   'registration_date', 'last_contact_date']]
-        df1.columns = ['voter_id', 'status', 'status_reason',
-                       'date_added', 'date_changed',
-                       'registration_date', 'last_contact_date']
-        df2 = self.get_voter_status()
-        df2 = df2.loc[df2['voter_id'].isin(df1['voter_id'])]
-
-        df = pd.concat([df1, df2])
-        updates = df.drop_duplicates(['voter_id'], keep='first')
-        self.replace_voter_status(updates)
-        self.con.commit()
+        df = df.rename(columns={'voter_status': 'status'})
+        self.replace_multiple_voter_status(df)
 
     def ingest_voter_demographics(self, df):
         df1 = df.copy()
         df1 = df1[['voter_id', 'race_id', 'gender', 'year_of_birth']]
-        df2 = self.get_voter_demographics()
+        df2 = self.voter_demographics
         df2 = df2.loc[df2['voter_id'].isin(df1['voter_id'])]
 
         df = pd.concat([df1, df2])
         updates = df.drop_duplicates(['voter_id'], keep='first')
-        self.replace_voter_demographics(updates)
-        self.con.commit()
+        self.replace_multiple_voter_demographics(updates)
 
-    def ingest_address_relationship(self, county_code, column, df, table_name=None):
+    def ingest_address_voter_relationship(self, county_code, df):
         """
-        Insert or update rows linking column to residence addresses.
-
-        An address is the defining characteristic that results in a voter's
-        inclusion or exclusion from a district. Thus, I link addresses
-        to districts and link voters to addresses. When determining linkages,
+        Link addresses to voter. When determining linkages,
         I include only those addresses that are in a given county, which
         greatly reduces the number of addresses that need to be
         considered at one time.
 
         :param county_code: Georgia county identifier, 3 digits, zero filled
-        :param column: the name of the column with which to form a relationsip with address
         :param df: a voter list data frame
-        :param table_name: optional table name if table name cannot be constructed from column (e.g., voter_id)
         :return: the number of inserted or updated rows
         """
 
@@ -214,86 +224,20 @@ class IngestVoterList(Pathes):
         # Construct an old address dataframe consisting
         # of just the address_id and key
         old_addresses = self.get_residence_addresses(county_code)
-        #old_addresses = old_addresses[['address_id', 'key']]
 
         # Construct a dataframe consisting of the residence address portion
-        # of the voter list. Insert the specified district type.
+        # of the voter list. Insert the voter_id.
         # Construct a new address dataframe consisting
-        # of just the column and key
+        # of just the voter_id and key
         new_addresses = self.as_residence_address(df)
-        new_addresses.insert(0, column, df[column])
-        new_addresses = new_addresses[[column, 'key']]
-        new_addresses = new_addresses[new_addresses[column] != '']
+        new_addresses.insert(0, 'voter_id', df['voter_id'])
+        new_addresses = new_addresses[['voter_id', 'key']]
+        new_addresses = new_addresses[new_addresses['voter_id'] != '']
         if len(new_addresses) > 0:
             # join new addresses and old addresses on key and save the
             # result
             updates = new_addresses.merge(old_addresses, how='inner', on='key')
-            # Construct a statement from the district type
-            # Replace
-            if table_name is None:
-                table_name = f'address_{column}'
-            stmt = f'replace into {table_name} values (?,?)'
-            cur = self.con.cursor()
-            errors = updates[updates.address_id.isna()]
-            if len(errors) > 0:
-                print(errors)
-            updates[['address_id', column]].apply(lambda row: cur.execute(stmt, (row[0], row[1])), axis=1)
-            self.con.commit()
-            return len(updates)
-        return 0
-
-    def ingest_address_voter_relationship(self, county_code, df):
-        self.ingest_address_relationship(county_code, 'voter_id', df, table_name='address_voter')
-
-    def ingest_address_district_relationship(self, county_code, df):
-        district_types = [
-            'land_district',
-            'land_lot',
-            'precinct_id',
-            'city_precinct_id',
-            'cng',
-            'sen',
-            'hse',
-            'jud',
-            'com',
-            'sch',
-            'county_districta_name',
-            'county_districta_value',
-            'county_districtb_name',
-            'county_districtb_value',
-            'municipal_name',
-            'municipal_code',
-            'ward_city_council_name',
-            'ward_city_council_code',
-            'city_school_district_name',
-            'city_school_district_value',
-            'city_dista_name',
-            'city_dista_value',
-            'city_distb_name',
-            'city_distb_value',
-            'city_distc_name',
-            'city_distc_value',
-            'city_distd_name',
-            'city_distd_value'
-        ]
-        """
-        Insert or update rows linking column to residence addresses.
-
-        An address is the defining characteristic that results in a voter's
-        inclusion or exclusion from a district. Thus, I link addresses
-        to districts and link voters to addresses. When determining linkages,
-        I include only those addresses that are in a given county, which
-        greatly reduces the number of addresses that need to be
-        considered at one time.
-
-        :param county_code: Georgia county identifier, 3 digits, zero filled
-        :param column: the name of the column with which to form a relationsip with address
-        :param df: a voter list data frame
-        :return: None
-        """
-
-        for dt in district_types:
-            self.ingest_address_relationship(county_code, dt, df)
+            self.replace_multiple_voter_residence_address(updates)
 
     def ingest_mailing_address_relationship(self, df):
         """
@@ -306,7 +250,7 @@ class IngestVoterList(Pathes):
         # Get known addresses from the database.
         # Construct an old address dataframe consisting
         # of just the address_id and key
-        old_addresses = self.get_mailing_addresses()
+        old_addresses = self.mailing_addresses
         old_addresses = old_addresses[['address_id', 'key']]
 
         # Construct a dataframe consisting of the residence address portion
@@ -319,7 +263,7 @@ class IngestVoterList(Pathes):
         # join new addresses and old addresses on key and save the
         # result
         updates = old_addresses.merge(new_addresses, how='inner', on='key')
-        self.replace_voter_mailing_address(updates[['address_id', 'voter_id']])
+        self.replace_multiple_voter_mailing_address(updates)
 
         return len(updates)
 
@@ -329,17 +273,17 @@ class IngestVoterList(Pathes):
         df.insert(0, 'address_id', np.NaN)
         df.drop_duplicates(['house_number', 'city', 'zipcode', 'street_name', 'apt_no', 'plus4'],
                            inplace=True)
-        dfdb = self.get_mailing_addresses()
+        dfdb = self.mailing_addresses
         df = pd.concat([dfdb, df])
         df.drop_duplicates(['house_number', 'city', 'zipcode', 'street_name', 'apt_no', 'plus4'], keep='first',
                            inplace=True)
         df = df[df['city'] != '']
         if len(df) > 0:
             df = df[pd.isna(df['address_id'])]
-            next_address_id = self.db.get_mailing_address_id_max() + 1
+            next_address_id = self.db.next_mailing_address_id
             df = df.assign(address_id=range(next_address_id, next_address_id + len(df)))
 
-            self.insert_mailing_address(df)
+            self.insert_multiple_mailing_address(df)
 
     def ingest_residence_address(self, county_code, df):
         df = df.copy()
@@ -359,70 +303,43 @@ class IngestVoterList(Pathes):
                            inplace=True)
         if len(df) > 0:
             df = df[pd.isna(df['address_id'])]
-            next_address_id = self.db.get_residence_address_id_max() + 1
+            next_address_id = self.db.next_residence_address_id
             df = df.assign(address_id=range(next_address_id, next_address_id + len(df)))
 
-            self.insert_residence_address(df)
+            self.insert_multiple_residence_address(df)
 
-    def replace_voter_residence_address(self, df):
-        stmt = f'replace into address_voter values (?,?)'
-        cur = self.con.cursor()
-        df[['address_id', 'voter_id']].apply(lambda row: cur.execute(stmt, (row[0], row[1])), axis=1)
-        self.con.commit()
+    def insert_multiple_mailing_address(self, df):
+        self.db.insert_multiple_mailing_address(df)
 
-    @classmethod
-    def replace_voter_mailing_address_row(cls, cur, row):
-        stmt = f'replace into mailing_address_voter values (?,?)'
-        try:
-            cur.execute(stmt, (row[0], row[1]))
-        except sql.IntegrityError as e:
-            print(row[0], row[1])
-            raise e
+    def insert_multiple_residence_address(self, df):
+        self.db.insert_multiple_residence_address(df)
 
-    def replace_voter_mailing_address(self, df):
-        cur = self.con.cursor()
-        df[['address_id', 'voter_id']].apply(lambda row: self.replace_voter_mailing_address_row(cur, row), axis=1)
-        self.con.commit()
+    def replace_multiple_voter_residence_address(self, df):
+        self.db.replace_multiple_voter_residence_address(df)
 
-    def replace_voter_name(self, df):
-        stmt = f'replace into voter_name values (?, ?, ?, ?, ?, ?)'
-        cur = self.con.cursor()
-        df.apply(lambda row: cur.execute(stmt, [row[i] for i in range(0, 6)]), axis=1)
-        self.con.commit()
+    def replace_multiple_voter_mailing_address(self, df):
+        self.db.replace_multiple_voter_mailing_address(df)
 
-    def replace_voter_status(self, df):
-        stmt = f'replace into voter_status values (?, ?, ?, ?, ?, ?, ?)'
-        cur = self.con.cursor()
-        df.apply(lambda row: cur.execute(stmt, [row[i] for i in range(0, 7)]), axis=1)
-        self.con.commit()
+    def replace_multiple_precinct_details(self, df):
+        self.db.replace_multiple_precinct_details(df)
 
-    def replace_voter_demographics(self, df):
-        stmt = f'replace into voter_demographics values (?, ?, ?, ?)'
-        cur = self.con.cursor()
-        df.apply(lambda row: cur.execute(stmt, [row[i] for i in range(0, 4)]), axis=1)
-        self.con.commit()
+    def replace_multiple_voter_cng(self, df):
+        self.db.replace_multiple_voter_cng(df)
 
-    def insert_residence_address(self, df):
-        stmt = f"""
-        insert into residence_address ('address_id',
-                       'county_code',
-                       'house_number',
-                       'street_name',
-                       'apt_no',
-                       'city',
-                       'state',
-                       'zipcode',
-                       'plus4') 
-                       values (?,?,?,?,?,?,?,?,?)
-        """
-        cur = self.con.cursor()
-        df.apply(lambda row: cur.execute(stmt, [row[i] for i in range(0, 9)]), axis=1)
-        self.con.commit()
+    def replace_multiple_voter_demographics(self, df):
+        self.db.replace_multiple_voter_demographics(df)
 
-    def insert_mailing_address(self, df):
-        stmt = f"""
-        insert into mailing_address values (?,?,?,?,?,?,?,?,?,?,?)
-        """
-        cur = self.con.cursor()
-        df.apply(lambda row: cur.execute(stmt, [row[i] for i in range(0, 11)]), axis=1)
-        self.con.commit()
+    def replace_multiple_voter_hse(self, df):
+        self.db.replace_multiple_voter_hse(df)
+
+    def replace_multiple_voter_name(self, df):
+        self.db.replace_multiple_voter_name(df)
+
+    def replace_multiple_voter_precinct(self, df):
+        self.db.replace_multiple_voter_precinct(df)
+
+    def replace_multiple_voter_sen(self, df):
+        self.db.replace_multiple_voter_sen(df)
+
+    def replace_multiple_voter_status(self, df):
+        self.db.replace_multiple_voter_status(df)

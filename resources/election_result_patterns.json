@@ -1,0 +1,13 @@
+{
+  "COBB": {
+    "choice": "(?P<n>[^(]+)(?:\\s+(?P<i>[(]I[)]))?",
+    "contest": "(?P<n>[^-]+)(?:\\s+-\\s+DISTRICT (?P<d>\\d+))?(?:\\s+-\\s+(?P<p>REP|DEM))?"
+  },
+  "FULTON": {
+    "choice": "(?P<n>[^(]+)(?:\\s+(?P<i>[(]I[)]))?",
+    "contest": "(?:(?P<p>REP|DEM)\\s+-\\s+)?(?P<n>US HOUSE|US SENATE|GOVERNOR|STATE SENATE|STATE HOUSE|COUNTY COMMISSIONER|SUPREME COURT|COURT OF APPEALS|SUPERIOR COURT)(?:\\s+DIST (?P<d>\\d+))?",
+    "contest_templates": {
+      "us_house": "US HOUSE DIST $district"
+    }
+  }
+}

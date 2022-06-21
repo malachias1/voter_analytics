@@ -7,29 +7,48 @@ CREATE TABLE IF NOT EXISTS county_details
 
 CREATE TABLE IF NOT EXISTS precinct_details
 (
-    id              text primary key,
-    year            integer not null,
+    id              integer primary key,
     county_code     text not null,
     precinct_id     text not null,
-    precinct_name   text not null
+    precinct_name   text
 );
+
+CREATE INDEX IF NOT EXISTS precinct_details_county_idx ON precinct_details (county_code);
 
 CREATE TABLE IF NOT EXISTS election_results
 (
-    county_code     text not null,
-    precinct_id     text not null,
-    precinct_name   text not null,
-    votes           integer not null,
-    election_date   text not null,
+    id integer primary key,
+    election_date     text not null,
     contest         text not null,
-    choice          text not null,
-    vote_type       text not null,
     is_question     text not null,
-    incumbent       text not null,
-    party       text not null
+    choice          text not null,
+    party       text,
+    county     text not null,
+    precinct_name   text not null,
+    vote_type       text not null,
+    votes           integer not null,
+    timestamp integer not null
 );
 
-CREATE INDEX IF NOT EXISTS election_results_idx ON election_results (election_date, contest);
+CREATE INDEX IF NOT EXISTS election_results_county_idx ON election_results (election_date, county);
+
+CREATE INDEX IF NOT EXISTS election_results_contest_idx ON election_results (election_date, contest);
+
+CREATE TABLE IF NOT EXISTS election_results_over_under
+(
+    id integer primary key,
+    election_date     text not null,
+    contest         text not null,
+    county     text not null,
+    precinct_name   text not null,
+    overvotes           integer not null,
+    undervotes           integer not null,
+    timestamp integer not null
+);
+
+CREATE INDEX IF NOT EXISTS election_results_county_over_under_idx ON election_results_over_under (election_date, county);
+
+CREATE INDEX IF NOT EXISTS election_results_contest_over_under_idx ON election_results_over_under (election_date, contest);
 
 CREATE TABLE IF NOT EXISTS voter_history
 (
@@ -88,12 +107,9 @@ CREATE INDEX IF NOT EXISTS VOTER_SEARCH_IDX ON voter_search (last_name, house_nu
 
 CREATE TABLE IF NOT EXISTS address_voter
 (
-    address_id integer not null,
-    voter_id   text    not null,
-    primary key (address_id, voter_id)
+    voter_id   text primary key,
+    address_id integer not null
 );
-
-CREATE INDEX IF NOT EXISTS ADDRESS_VOTER_VOTER_IDX ON address_voter (voter_id);
 
 CREATE TABLE IF NOT EXISTS mailing_address
 (
@@ -112,9 +128,8 @@ CREATE TABLE IF NOT EXISTS mailing_address
 
 CREATE TABLE IF NOT EXISTS mailing_address_voter
 (
-    address_id integer not null,
-    voter_id   text    not null,
-    primary key (address_id, voter_id)
+    voter_id   text primary key,
+    address_id integer not null
 );
 
 
@@ -137,177 +152,114 @@ CREATE TABLE IF NOT EXISTS voter_demographics
     year_of_birth integer not null
 );
 
-
-CREATE TABLE IF NOT EXISTS address_land_district
+CREATE TABLE IF NOT EXISTS voter_precinct
 (
-    address_id    integer primary key,
-    land_district text not null
+    voter_id text primary key,
+    precinct_id integer not null
 );
 
-CREATE TABLE IF NOT EXISTS address_land_lot
+CREATE TABLE IF NOT EXISTS voter_cng
 (
-    address_id integer primary key,
-    land_lot   text not null
+    voter_id text primary key,
+    cng text not null
 );
 
-CREATE TABLE IF NOT EXISTS address_precinct_id
+CREATE TABLE IF NOT EXISTS voter_sen
 (
-    address_id  integer primary key,
-    precinct_id text not null
+    voter_id text primary key,
+    sen text not null
 );
 
-CREATE TABLE IF NOT EXISTS address_city_precinct_id
+CREATE TABLE IF NOT EXISTS voter_hse
 (
-    address_id       integer primary key,
-    city_precinct_id text not null
+    voter_id text primary key,
+    hse text not null
 );
 
-CREATE TABLE IF NOT EXISTS address_cng
+CREATE TABLE IF NOT EXISTS precinct_summary
 (
-    address_id integer primary key,
-    cng        text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_sen
-(
-    address_id integer primary key,
-    sen        text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_hse
-(
-    address_id integer primary key,
-    hse        text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_jud
-(
-    address_id integer primary key,
-    jud        text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_com
-(
-    address_id integer primary key,
-    com        text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_sch
-(
-    address_id integer primary key,
-    sch        text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_county_districta_name
-(
-    address_id            integer primary key,
-    county_districta_name text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_county_districta_value
-(
-    address_id             integer primary key,
-    county_districta_value text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_county_districtb_name
-(
-    address_id            integer primary key,
-    county_districtb_name text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_county_districtb_value
-(
-    address_id             integer primary key,
-    county_districtb_value text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_municipal_name
-(
-    address_id     integer primary key,
-    municipal_name text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_municipal_code
-(
-    address_id     integer primary key,
-    municipal_code text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_ward_city_council_name
-(
-    address_id             integer primary key,
-    ward_city_council_name text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_ward_city_council_code
-(
-    address_id             integer primary key,
-    ward_city_council_code text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_city_school_district_name
-(
-    address_id                integer primary key,
-    city_school_district_name text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_city_school_district_value
-(
-    address_id                 integer primary key,
-    city_school_district_value text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_city_dista_name
-(
-    address_id      integer primary key,
-    city_dista_name text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_city_dista_value
-(
-    address_id       integer primary key,
-    city_dista_value text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_city_distb_name
-(
-    address_id      integer primary key,
-    city_distb_name text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_city_distb_value
-(
-    address_id       integer primary key,
-    city_distb_value text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_city_distc_name
-(
-    address_id      integer primary key,
-    city_distc_name text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_city_distc_value
-(
-    address_id       integer primary key,
-    city_distc_value text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_city_distd_name
-(
-    address_id      integer primary key,
-    city_distd_name text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_city_distd_value
-(
-    address_id       integer primary key,
-    city_distd_value text not null
-);
-
-CREATE TABLE IF NOT EXISTS address_district_combo
-(
-    address_id     integer primary key,
-    district_combo text not null
+    precinct_id integer primary key,
+    total integer not null,
+    AP          integer not null,
+    AI          integer not null,
+    HP          integer not null,
+    BH          integer not null,
+    OT          integer not null,
+    U           integer not null,
+    WH          integer not null,
+    S           integer not null,
+    B           integer not null,
+    GX          integer not null,
+    M           integer not null,
+    GZ          integer not null,
+    WH_F_S      integer not null,
+    WH_F_B      integer not null,
+    WH_F_GX     integer not null,
+    WH_F_M      integer not null,
+    WH_F_GZ     integer not null,
+    WH_M_S      integer not null,
+    WH_M_B      integer not null,
+    WH_M_GX     integer not null,
+    WH_M_M      integer not null,
+    WH_M_GZ     integer not null,
+    BH_F_S      integer not null,
+    BH_F_B      integer not null,
+    BH_F_GX     integer not null,
+    BH_F_M      integer not null,
+    BH_F_GZ     integer not null,
+    BH_M_S      integer not null,
+    BH_M_B      integer not null,
+    BH_M_GX     integer not null,
+    BH_M_M      integer not null,
+    BH_M_GZ     integer not null,
+    U_F_S       integer not null,
+    U_F_B       integer not null,
+    U_F_GX      integer not null,
+    U_F_M       integer not null,
+    U_F_GZ      integer not null,
+    U_M_S       integer not null,
+    U_M_B       integer not null,
+    U_M_GX      integer not null,
+    U_M_M       integer not null,
+    U_M_GZ      integer not null,
+    OT_F_S      integer not null,
+    OT_F_B      integer not null,
+    OT_F_GX     integer not null,
+    OT_F_M      integer not null,
+    OT_F_GZ     integer not null,
+    OT_M_S      integer not null,
+    OT_M_B      integer not null,
+    OT_M_GX     integer not null,
+    OT_M_M      integer not null,
+    OT_M_GZ     integer not null,
+    HP_F_S      integer not null,
+    HP_F_B      integer not null,
+    HP_F_GX     integer not null,
+    HP_F_M      integer not null,
+    HP_F_GZ     integer not null,
+    HP_M_S      integer not null,
+    HP_M_B      integer not null,
+    HP_M_GX     integer not null,
+    HP_M_M      integer not null,
+    HP_M_GZ     integer not null,
+    AI_F_S      integer not null,
+    AI_F_B      integer not null,
+    AI_F_GX     integer not null,
+    AI_F_M      integer not null,
+    AI_F_GZ     integer not null,
+    AI_M_S      integer not null,
+    AI_M_B      integer not null,
+    AI_M_GX     integer not null,
+    AI_M_M      integer not null,
+    AI_M_GZ     integer not null,
+    AP_F_S      integer not null,
+    AP_F_B      integer not null,
+    AP_F_GX     integer not null,
+    AP_F_M      integer not null,
+    AP_F_GZ     integer not null,
+    AP_M_S      integer not null,
+    AP_M_B      integer not null,
+    AP_M_GX     integer not null,
+    AP_M_M      integer not null,
+    AP_M_GZ     integer not null
 );

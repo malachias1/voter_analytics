@@ -11,6 +11,10 @@ class Pathes:
         return Path(self.root_dir, 'census')
 
     @property
+    def maps_dir(self):
+        return Path(self.politics_dir, 'maps')
+
+    @property
     def politics_dir(self):
         return Path(self.root_dir, 'politics')
 

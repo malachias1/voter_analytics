@@ -10,6 +10,85 @@ class VoterDb(Pathes):
         p = Path(self.root_dir, 'voter.db')
         self.con = sql.connect(p)
 
+    @property
+    def mailing_address_voter(self):
+        return pd.read_sql_query(f"select * from mailing_address_voter", self.con)
+
+    @property
+    def mailing_addresses(self):
+        df = pd.read_sql_query(f"select * from mailing_address", self.con)
+        return self.add_address_key(df, self.as_mailing_address_key)
+
+    @property
+    def precinct_details(self):
+        return pd.read_sql_query(f"select * from precinct_details", self.con)
+
+    @property
+    def precinct_summary(self):
+        return pd.read_sql_query(f"select * from precinct_summary", self.con)
+
+    @property
+    def next_mailing_address_id(self):
+        df = pd.read_sql_query(f"select max(address_id) from mailing_address", self.con)
+        if len(df) > 0 and df.iloc[0, 0] is not None:
+            return df.iloc[0, 0] + 1
+        return 0
+
+    @property
+    def next_precinct_id(self):
+        df = pd.read_sql_query(f"select max(id) from precinct_details", self.con)
+        if len(df) > 0 and df.iloc[0, 0] is not None:
+            return df.iloc[0, 0] + 1
+        return 0
+
+    @property
+    def next_residence_address_id(self):
+        df = pd.read_sql_query(f"select max(address_id) from residence_address", self.con)
+        if len(df) > 0 and df.iloc[0, 0] is not None:
+            return df.iloc[0, 0] + 1
+        return 0
+
+    @property
+    def residence_addresses(self):
+        df = pd.read_sql_query(f"select * from residence_address", self.con)
+        return self.add_address_key(df, self.as_residence_address_key)
+
+    @property
+    def voter_cng(self):
+        return pd.read_sql_query(f"select voter_id, cng from voter_cng", self.con)
+
+    @property
+    def voter_demographics(self):
+        return pd.read_sql_query(f"select * from voter_demographics", self.con)
+
+    @property
+    def voter_hse(self):
+        return pd.read_sql_query(f"select voter_id, hse from voter_hse", self.con)
+
+    @property
+    def voter_mailing_address(self):
+        return pd.read_sql_query(f"select * from mailing_address_voter", self.con)
+
+    @property
+    def voter_names(self):
+        return pd.read_sql_query(f"select * from voter_name", self.con)
+
+    @property
+    def voter_precinct(self):
+        return pd.read_sql_query(f"select * from voter_precinct", self.con)
+
+    @property
+    def voter_residence_address(self):
+        return pd.read_sql_query(f"select * from address_voter", self.con)
+
+    @property
+    def voter_sen(self):
+        return pd.read_sql_query(f"select voter_id, sen from voter_sen", self.con)
+
+    @property
+    def voter_status(self):
+        return pd.read_sql_query(f"select * from voter_status", self.con)
+
     def initialize(self):
         """
         Execute schema DDL. The method is idempotent.
@@ -19,10 +98,7 @@ class VoterDb(Pathes):
         schema_path = Path(Path(__file__).parent, 'voterdb.sql')
         with schema_path.open('r') as f:
             schema_ddl = f.read()
-        cur = self.con.cursor()
-        for stmt in schema_ddl.split(';'):
-            cur.execute(stmt)
-        self.con.commit()
+            self.run_script(schema_ddl)
 
     @classmethod
     def as_residence_address_key(cls, row, pos=0):
@@ -66,30 +142,8 @@ class VoterDb(Pathes):
             df = pd.DataFrame(columns=columns)
         return df
 
-    def get_mailing_addresses(self):
-        df = pd.read_sql_query(f"select * from mailing_address", self.con)
-        return self.add_address_key(df, self.as_mailing_address_key)
-
-    def get_mailing_address_id_max(self):
-        df = pd.read_sql_query(f"select max(address_id) from mailing_address", self.con)
-        if len(df) > 0 and df.iloc[0, 0] is not None:
-            return df.iloc[0, 0]
-        return 0
-
-    def get_mailing_address_voter(self):
-        return pd.read_sql_query(f"select * from mailing_address_voter", self.con)
-
     def get_residence_address(self, address_id):
         return pd.read_sql_query(f"select * from residence_address where address_id={address_id}", self.con)
-
-    def get_residence_address_id_max(self):
-        df = pd.read_sql_query(f"select max(address_id) from residence_address", self.con)
-        if len(df) > 0 and df.iloc[0, 0] is not None:
-            return df.iloc[0, 0]
-        return 0
-
-    def get_residence_address_voter(self):
-        return pd.read_sql_query(f"select * from address_voter", self.con)
 
     def get_residence_address_for_voter(self, voter_id):
         address_id = self.get_residence_address_id_for_voter(voter_id)
@@ -103,48 +157,33 @@ class VoterDb(Pathes):
             return df.iloc[0, 0]
         return None
 
-    def get_residence_addresses(self):
-        df = pd.read_sql_query(f"select * from residence_address", self.con)
-        return self.add_address_key(df, self.as_residence_address_key)
-
     def get_residence_addresses_for_county(self, county_code):
-        return pd.read_sql_query(f"select * from residence_address where county_code='{county_code}'", self.con)
+        df = pd.read_sql_query(f"select * from residence_address where county_code='{county_code}'", self.con)
         return self.add_address_key(df, self.as_residence_address_key)
 
     def get_voter_cng(self, voter_id):
-        address_id = self.get_residence_address_id_for_voter(voter_id)
-        if address_id:
-            df = pd.read_sql_query(f"select * from address_cng where address_id={address_id}", self.con)
-            if len(df) > 0:
-                return df.cng.iloc[0]
+        df = pd.read_sql_query(f"select * from voter_cng where voter_id={voter_id}", self.con)
+        if len(df) > 0:
+            return df.cng.iloc[0]
         return None
 
     def get_voter_hse(self, voter_id):
-        address_id = self.get_residence_address_id_for_voter(voter_id)
-        if address_id:
-            df = pd.read_sql_query(f"select * from address_hse where address_id={address_id}", self.con)
-            if len(df) > 0:
-                return df.hse.iloc[0]
+        df = pd.read_sql_query(f"select * from voter_hse where voter_id={voter_id}", self.con)
+        if len(df) > 0:
+            return df.cng.iloc[0]
         return None
 
     def get_voter_sen(self, voter_id):
-        address_id = self.get_residence_address_id_for_voter(voter_id)
-        if address_id:
-            df = pd.read_sql_query(f"select * from address_sen where address_id={address_id}", self.con)
-            if len(df) > 0:
-                return df.sen.iloc[0]
+        df = pd.read_sql_query(f"select * from voter_sen where voter_id={voter_id}", self.con)
+        if len(df) > 0:
+            return df.cng.iloc[0]
         return None
 
     def get_voter_precinct_id(self, voter_id):
-        address_id = self.get_residence_address_id_for_voter(voter_id)
-        if address_id:
-            df = pd.read_sql_query(f"select * from address_precinct_id where address_id={address_id}", self.con)
-            if len(df) > 0:
-                return df.precinct_id.iloc[0]
+        df = pd.read_sql_query(f"select * from voter_sen where voter_id={voter_id}", self.con)
+        if len(df) > 0:
+            return df.cng.iloc[0]
         return None
-
-    def get_voter_names(self):
-        return pd.read_sql_query(f"select * from voter_name", self.con)
 
     def get_voter_by_name(self, first_name, last_name):
         params = (first_name, last_name)
@@ -161,16 +200,22 @@ class VoterDb(Pathes):
         return pd.read_sql_query(f"select * from voter_name where ?=last_name",
                                  self.con, params=params)
 
-    def get_voter_status(self):
-        return pd.read_sql_query(f"select * from voter_status", self.con)
-
-    def get_voter_demographics(self):
-        return pd.read_sql_query(f"select * from voter_demographics", self.con)
-
     def get_voter_demographics_for_voter(self, voter_id):
         df = pd.read_sql_query(f"select * from voter_demographics where voter_id='{voter_id}'", self.con)
         if len(df) > 0:
             return df.iloc[0]
+        return None
+
+    def get_voter_name_details(self, voter_id):
+        df = pd.read_sql_query(f"select * from voter_name where voter_id='{voter_id}'", self.con)
+        if len(df.index) == 1:
+            return df
+        return None
+
+    def get_voter_demographics_details(self, voter_id):
+        df = pd.read_sql_query(f"select * from voter_demographics where voter_id='{voter_id}'", self.con)
+        if len(df.index) == 1:
+            return df
         return None
 
     def rebuild_search_table(self):
@@ -212,12 +257,187 @@ class VoterDb(Pathes):
     def get_voter_score(self):
         return pd.read_sql_query(f"select * from voter_score", self.con)
 
-    def get_precinct_id_max(self):
-        df = pd.read_sql_query(f"select max(id) from precinct_details", self.con)
-        if len(df) > 0 and df.iloc[0, 0] is not None:
-            return df.iloc[0, 0]
-        return 0
+    def delete_election_result(self, election_date, county):
+        cur = self.con.cursor()
+        cur.execute(f"delete from election_results where election_date='{election_date}' and county='{county}'")
+        self.con.commit()
 
-    def get_precinct_details(self, year):
-        return pd.read_sql_query(f"select id, county_code, precinct_id, precinct_name from precinct_details "
-                                 f"where year={year}", self.con)
+    def get_election_results(self, election_date):
+        return pd.read_sql_query(f"select * from election_results where election_date='{election_date}'", self.con)
+
+    def delete_election_result_over_under(self, election_date, county):
+        cur = self.con.cursor()
+        cur.execute(
+            f"delete from election_results_over_under where election_date='{election_date}' and county='{county}'")
+        self.con.commit()
+
+    def get_election_results_over_under(self, election_date):
+        return pd.read_sql_query(f"select * from election_results_over_under where election_date='{election_date}'",
+                                 self.con)
+
+    def insert_multiple_mailing_address(self, df):
+        df = df[['address_id', 'house_number',
+                 'street_name', 'apt_no', 'city',
+                 'state', 'zipcode', 'plus4',
+                 'address_line2', 'address_line3', 'country']]
+        stmt = f"""
+        insert into mailing_address (address_id, house_number, street_name,
+                                     apt_no, city, state, zipcode, plus4,
+                                     address_line2, address_line3, country)
+        values (?,?,?,?,?,?,?,?,?,?,?)
+        """
+        self.executemany(stmt, df.values.tolist())
+
+    def insert_multiple_residence_address(self, df):
+        df = df[['address_id', 'county_code', 'house_number',
+                 'street_name', 'apt_no', 'city',
+                 'state', 'zipcode', 'plus4']]
+        stmt = f"""
+        insert into residence_address (address_id, county_code, house_number, street_name,
+                                       apt_no, city, state, zipcode, plus4) 
+        values (?,?,?,?,?,?,?,?,?)
+        """
+        self.executemany(stmt, df.values.tolist())
+
+    def replace_multiple_precinct_details(self, df):
+        """
+        Update precinct details for a county. Raise an
+        error if multiple counties are present in df.
+        Purge precincts. Put colums in correct order.
+
+        :param df:
+        :return:
+        """
+        df = df[['id', 'county_code', 'precinct_id']]
+        self.check_county_code_integrity(df)
+        county_code = df.county_code.unique()[0]
+        pruge_script = f"""
+        delete from precinct_details where county_code='{county_code}';
+        """
+        self.run_script(pruge_script)
+        stmt = f"""insert into precinct_details (id, county_code, precinct_id)
+                   values (?, ?, ?)
+        """
+        self.executemany(stmt, df.values.tolist())
+
+    def replace_multiple_voter_cng(self, df):
+        df = df[['voter_id', 'cng']]
+        stmt = f"""
+            replace into voter_cng (voter_id, cng)
+            values (?, ?)
+        """
+        self.executemany(stmt, df.values.tolist())
+
+    def replace_multiple_voter_demographics(self, df):
+        df = df[['voter_id', 'race_id', 'gender', 'year_of_birth']]
+        stmt = f"""
+            replace into voter_demographics (voter_id, race_id, gender, year_of_birth)
+            values (?, ?, ?, ?)
+        """
+        self.executemany(stmt, df.values.tolist())
+
+    def replace_multiple_voter_hse(self, df):
+        df = df[['voter_id', 'hse']]
+        stmt = f"""
+            replace into voter_hse (voter_id, hse)
+            values (?, ?)
+        """
+        self.executemany(stmt, df.values.tolist())
+
+    def replace_multiple_voter_mailing_address(self, df):
+        df = df[['voter_id', 'address_id']]
+        stmt = f'replace into mailing_address_voter (voter_id, address_id) values (?,?)'
+        self.executemany(stmt, df.values.tolist())
+
+    def replace_multiple_voter_name(self, df):
+        df = df[['voter_id', 'last_name', 'first_name',
+                 'middle_name', 'name_suffix', 'name_title']]
+        stmt = f"""
+          replace into voter_name (voter_id, last_name, first_name, 
+                                   middle_name, name_suffix, name_title)
+          values (?, ?, ?, ?, ?, ?)
+        """
+        self.executemany(stmt, df.values.tolist())
+
+    def replace_multiple_voter_precinct(self, df):
+        df = df[['voter_id', 'precinct_id']]
+        # values = df.apply(lambda row: row.tolist(), axis=1)
+        stmt = f"""
+          replace into voter_precinct (voter_id, precinct_id) 
+          values (?, ?)
+        """
+        self.executemany(stmt, df.values.tolist())
+
+    def replace_multiple_voter_residence_address(self, df):
+        df = df[['voter_id', 'address_id']]
+        stmt = f'replace into address_voter (voter_id, address_id) values (?,?)'
+        self.executemany(stmt, df.values.tolist())
+
+    def replace_multiple_voter_sen(self, df):
+        df = df[['voter_id', 'sen']]
+        stmt = f"""
+            replace into voter_sen (voter_id, sen)
+            values (?, ?)
+        """
+        self.executemany(stmt, df.values.tolist())
+
+    def replace_multiple_voter_status(self, df):
+        df = df[['voter_id', 'status', 'status_reason', 'date_added',
+                 'date_changed', 'registration_date', 'last_contact_date']]
+        stmt = f"""
+            replace into voter_status (voter_id, status, status_reason, date_added,
+                                       date_changed, registration_date, last_contact_date) 
+            values (?, ?, ?, ?, ?, ?, ?)
+        """
+        self.executemany(stmt, df.values.tolist())
+
+    def replace_precinct_summary(self, df):
+        values = df.to_dict(orient='records')
+        truncate_script = f"""
+        delete from precinct_summary;
+        """
+        self.run_script(truncate_script)
+
+        stmt = f"""
+        insert into precinct_summary (
+            precinct_id, total, AP, AI, HP, BH, OT, U, WH, S, B, GX, M, GZ, WH_F_S, WH_F_B, 
+            WH_F_GX, WH_F_M, WH_F_GZ, WH_M_S, WH_M_B, WH_M_GX, WH_M_M, WH_M_GZ, BH_F_S, 
+            BH_F_B, BH_F_GX, BH_F_M, BH_F_GZ, BH_M_S, BH_M_B, BH_M_GX, BH_M_M, BH_M_GZ, 
+            U_F_S, U_F_B, U_F_GX, U_F_M, U_F_GZ, U_M_S, U_M_B, U_M_GX, U_M_M, U_M_GZ, 
+            OT_F_S, OT_F_B, OT_F_GX, OT_F_M, OT_F_GZ, OT_M_S, OT_M_B, OT_M_GX, OT_M_M, 
+            OT_M_GZ, HP_F_S, HP_F_B, HP_F_GX, HP_F_M, HP_F_GZ, HP_M_S, HP_M_B, HP_M_GX, 
+            HP_M_M, HP_M_GZ, AI_F_S, AI_F_B, AI_F_GX, AI_F_M, AI_F_GZ, AI_M_S, AI_M_B, AI_M_GX, 
+            AI_M_M, AI_M_GZ, AP_F_S, AP_F_B, AP_F_GX, AP_F_M, AP_F_GZ, AP_M_S, AP_M_B, AP_M_GX, 
+            AP_M_M, AP_M_GZ
+        )
+        values(
+            :precinct_id, :total, :AP, :AI, :HP, :BH, :OT, :U, :WH, :S, :B, :GX, :M, :GZ, 
+            :WH_F_S, :WH_F_B, :WH_F_GX, :WH_F_M, :WH_F_GZ, :WH_M_S, :WH_M_B, :WH_M_GX, 
+            :WH_M_M, :WH_M_GZ, :BH_F_S, :BH_F_B, :BH_F_GX, :BH_F_M, :BH_F_GZ, :BH_M_S, 
+            :BH_M_B, :BH_M_GX, :BH_M_M, :BH_M_GZ, :U_F_S, :U_F_B, :U_F_GX, :U_F_M, :U_F_GZ, 
+            :U_M_S, :U_M_B, :U_M_GX, :U_M_M, :U_M_GZ, :OT_F_S, :OT_F_B, :OT_F_GX, :OT_F_M, 
+            :OT_F_GZ, :OT_M_S, :OT_M_B, :OT_M_GX, :OT_M_M, :OT_M_GZ, :HP_F_S, :HP_F_B, :HP_F_GX, 
+            :HP_F_M, :HP_F_GZ, :HP_M_S, :HP_M_B, :HP_M_GX, :HP_M_M, :HP_M_GZ, :AI_F_S, :AI_F_B, 
+            :AI_F_GX, :AI_F_M, :AI_F_GZ, :AI_M_S, :AI_M_B, :AI_M_GX, :AI_M_M, :AI_M_GZ, :AP_F_S, 
+            :AP_F_B, :AP_F_GX, :AP_F_M, :AP_F_GZ, :AP_M_S, :AP_M_B, :AP_M_GX, :AP_M_M, :AP_M_GZ
+        )
+        """
+        self.executemany(stmt, values)
+
+    def run_script(self, script):
+        cur = self.con.cursor()
+        for stmt in script.split(';'):
+            # print(stmt)
+            cur.execute(stmt)
+        self.con.commit()
+
+    def executemany(self, stmt, values):
+        cur = self.con.cursor()
+        cur.executemany(stmt, values)
+        self.con.commit()
+
+    @classmethod
+    def check_county_code_integrity(cls, df):
+        check = df.county_code.unique()
+        if len(check) > 1:
+            raise ValueError('More than one county code in voter list!')
