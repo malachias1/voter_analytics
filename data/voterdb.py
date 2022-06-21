@@ -11,6 +11,22 @@ class VoterDb(Pathes):
         self.con = sql.connect(p)
 
     @property
+    def cng_maps(self):
+        return pd.read_sql_query(f"select * from cng_map", self.con)
+
+    @property
+    def county_details(self):
+        return pd.read_sql_query(f"select * from county_details", self.con)
+
+    @property
+    def county_maps(self):
+        return pd.read_sql_query(f"select * from county_map", self.con)
+
+    @property
+    def hse_maps(self):
+        return pd.read_sql_query(f"select * from hse_map", self.con)
+
+    @property
     def mailing_address_voter(self):
         return pd.read_sql_query(f"select * from mailing_address_voter", self.con)
 
@@ -18,14 +34,6 @@ class VoterDb(Pathes):
     def mailing_addresses(self):
         df = pd.read_sql_query(f"select * from mailing_address", self.con)
         return self.add_address_key(df, self.as_mailing_address_key)
-
-    @property
-    def precinct_details(self):
-        return pd.read_sql_query(f"select * from precinct_details", self.con)
-
-    @property
-    def precinct_summary(self):
-        return pd.read_sql_query(f"select * from precinct_summary", self.con)
 
     @property
     def next_mailing_address_id(self):
@@ -49,9 +57,21 @@ class VoterDb(Pathes):
         return 0
 
     @property
+    def precinct_details(self):
+        return pd.read_sql_query(f"select * from precinct_details", self.con)
+
+    @property
+    def precinct_summary(self):
+        return pd.read_sql_query(f"select * from precinct_summary", self.con)
+
+    @property
     def residence_addresses(self):
         df = pd.read_sql_query(f"select * from residence_address", self.con)
         return self.add_address_key(df, self.as_residence_address_key)
+
+    @property
+    def sen_maps(self):
+        return pd.read_sql_query(f"select * from sen_map", self.con)
 
     @property
     def voter_cng(self):
@@ -88,6 +108,10 @@ class VoterDb(Pathes):
     @property
     def voter_status(self):
         return pd.read_sql_query(f"select * from voter_status", self.con)
+
+    @property
+    def vtd_maps(self):
+        return pd.read_sql_query(f"select * from vtd_map", self.con)
 
     def initialize(self):
         """
@@ -217,6 +241,9 @@ class VoterDb(Pathes):
         if len(df.index) == 1:
             return df
         return None
+
+    def get_vtd_map(self, county_code):
+        return pd.read_sql_query(f"select * from vtd_map where county_code='{county_code}'", self.con)
 
     def rebuild_search_table(self):
         cur = self.con.cursor()
