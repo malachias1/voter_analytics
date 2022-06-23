@@ -15,24 +15,61 @@ CREATE TABLE IF NOT EXISTS precinct_details
 
 CREATE INDEX IF NOT EXISTS precinct_details_county_idx ON precinct_details (county_code);
 
-CREATE TABLE IF NOT EXISTS election_results
+CREATE TABLE IF NOT EXISTS contest_class
 (
     id integer primary key,
-    election_date     text not null,
-    contest         text not null,
-    is_question     text not null,
-    choice          text not null,
-    party       text,
-    county     text not null,
-    precinct_name   text not null,
-    vote_type       text not null,
-    votes           integer not null,
+    election_date  text not null,
+    contest        text not null,
+    category       text not null,
+    canonical_name text not null,
+    type           text not null,
+    subcategory    text,
+    party          text,
+    is_question    bool not null,
+    ambiguous      bool not null
+);
+
+CREATE INDEX IF NOT EXISTS election_results_county_idx ON contest_class (election_date);
+CREATE INDEX IF NOT EXISTS contest_class_idx ON contest_class (election_date, category, subcategory);
+
+CREATE TABLE IF NOT EXISTS contest_class_map
+(
+    election_date  text not null,
+    election_result_id integer not null,
+    contest_class_id integer not null
+);
+
+CREATE TABLE IF NOT EXISTS election_result_details
+(
+    id integer primary key,
+    election_date  text not null,
+    county         text not null,
+    contest        text not null,
+    choice         text not null,
+    party          text,
+    is_question    bool not null,
+    precinct_name  text not null,
+    vote_type      text not null,
+    votes          integer not null,
     timestamp integer not null
 );
 
-CREATE INDEX IF NOT EXISTS election_results_county_idx ON election_results (election_date, county);
+CREATE TABLE IF NOT EXISTS election_results
+(
+    id integer primary key,
+    election_date  text not null,
+    county         text not null,
+    contest        text not null,
+    choice         text not null,
+    party          text,
+    is_question    bool not null,
+    precinct_name  text not null,
+    votes          integer not null
+);
 
+CREATE INDEX IF NOT EXISTS election_results_county_idx ON election_results (election_date, county);
 CREATE INDEX IF NOT EXISTS election_results_contest_idx ON election_results (election_date, contest);
+
 
 CREATE TABLE IF NOT EXISTS election_results_over_under
 (

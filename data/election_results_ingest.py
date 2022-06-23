@@ -5,12 +5,16 @@ from pathlib import Path
 import xml.etree.ElementTree as Et
 from dateutil import parser
 import time
+import zipfile
+from data.election_contest_identifier import ElectionContestIdentifer
+import shutil
 
 
 class ElectionResultReaderBase:
     def __init__(self, path):
         path = Path(path).expanduser()
         self.root = Et.parse(path).getroot()
+        self.eci = ElectionContestIdentifer()
 
     @property
     def contests(self):
@@ -178,7 +182,16 @@ class ElectionResultReaderBase:
 
     @classmethod
     def get_vote_type_name(cls, vote_type_element):
-        return vote_type_element.get('name').upper().strip()
+        type_name = vote_type_element.get('name').upper().strip()
+        if type_name.startswith('ELECTION'):
+            return 'E'
+        if type_name.startswith('PROVI'):
+            return 'P'
+        if type_name.startswith('ABSE'):
+            return 'AB'
+        if type_name.startswith('AD'):
+            return 'AD'
+        raise ValueError(f'Unknown vote type, {type_name}')
 
     @classmethod
     def get_vote_types(cls, choice_element):
@@ -247,22 +260,35 @@ class IngestElectionResults(Pathes):
             .assign(timestamp=time.time_ns())
 
     def ingest(self, path):
-        er = ElectionResultReaderBase(path)
-        df_contest = self.get_contest_results(er)
-        df_over_under = self.get_contest_over_under(er)
-        df1 = df_contest[['election_date', 'county']].drop_duplicates()
-        df1.apply(lambda row: self.db.delete_election_result(row[0], row[1]), axis=1)
-        df1.apply(lambda row: self.db.delete_election_result_over_under(row[0], row[1]), axis=1)
+        for f in Path(path).expanduser().iterdir():
+            if f.suffix == '.zip':
+                extract_to = Path(f.parent, f'{f.stem}')
+                move_to = Path(f.parent, f'{f.stem}.xml')
+                if not move_to.exists():
+                    with zipfile.ZipFile(f, 'r') as zip_ref:
+                        zip_ref.extractall(extract_to)
+                        shutil.move(Path(extract_to, 'detail.xml'), move_to)
+                    extract_to.rmdir()
 
-        stmt = f"""
-        insert into election_results ('election_date', 'contest', 'is_question', 'choice', 'party',
-               'county', 'precinct_name','vote_type','votes', 'timestamp') values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-        cur = self.con.cursor()
-        df_contest.apply(lambda row: cur.execute(stmt, [row[i] for i in range(0, 10)]), axis=1)
-        stmt = f"""insert into election_results_over_under ('election_date', 'contest',
-               'county', 'precinct_name', 'overvotes', 'undervotes', 'timestamp')values (?, ?, ?, ?, ?, ?, ?)
-        """
-        cur = self.con.cursor()
-        df_over_under.apply(lambda row: cur.execute(stmt, [row[i] for i in range(0, 7)]), axis=1)
-        self.con.commit()
+        for f in Path(path).expanduser().iterdir():
+            if f.suffix == '.xml':
+                print(f)
+                er = ElectionResultReaderBase(f)
+                df_results = self.get_contest_results(er)
+                df_over_under = self.get_contest_over_under(er)
+                self.db.insert_election_results(df_results)
+                self.db.insert_election_results_over_under(df_over_under)
+        self.rebuild_contest_class()
+
+    def rebuild_contest_class(self):
+        eci = ElectionContestIdentifer()
+        contests = self.db.contests
+        contest_class = contests[['election_date', 'contest']].apply(lambda row: eci.classify(row[0], row[1]), axis=1)
+        contest_class_df = pd.DataFrame.from_records(contest_class).drop_duplicates().reset_index()
+        contest_class_df = contest_class_df.assign(id=range(0, len(contest_class_df.index)))
+        contest_class_df1 = contest_class_df.rename(columns={'id': 'contest_class_id'}).drop(columns=['election_date'])
+        contest_class_map = contests.merge(contest_class_df1, on='contest', how='inner')
+        contest_class_map = contest_class_map.rename(columns={'id': 'election_result_id'})
+        self.db.replace_contest_class(contest_class_df)
+        self.db.replace_contest_class_map(contest_class_map)
+

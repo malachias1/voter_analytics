@@ -1,13 +1,309 @@
-{
-  "COBB": {
-    "choice": "(?P<n>[^(]+)(?:\\s+(?P<i>[(]I[)]))?",
-    "contest": "(?P<n>[^-]+)(?:\\s+-\\s+DISTRICT (?P<d>\\d+))?(?:\\s+-\\s+(?P<p>REP|DEM))?"
+[
+  {
+    "category": "us_house",
+    "canonical_name": "US HOUSE",
+    "type": "federal",
+    "pattern": "US HOUSE",
+    "subcategory": "\\b(\\d+)\\b",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b"
   },
-  "FULTON": {
-    "choice": "(?P<n>[^(]+)(?:\\s+(?P<i>[(]I[)]))?",
-    "contest": "(?:(?P<p>REP|DEM)\\s+-\\s+)?(?P<n>US HOUSE|US SENATE|GOVERNOR|STATE SENATE|STATE HOUSE|COUNTY COMMISSIONER|SUPREME COURT|COURT OF APPEALS|SUPERIOR COURT)(?:\\s+DIST (?P<d>\\d+))?",
-    "contest_templates": {
-      "us_house": "US HOUSE DIST $district"
-    }
+  {
+    "category": "us_senate",
+    "canonical_name": "US SENATE",
+    "type": "federal",
+    "pattern": "US SENATE",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "ga_house",
+    "canonical_name": "STATE HOUSE",
+    "type": "state",
+    "pattern": "STATE HOUSE",
+    "subcategory": "\\b(\\d+)\\b",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "ga_senate",
+    "canonical_name": "STATE SENATE",
+    "type": "state",
+    "pattern": "STATE SENATE",
+    "subcategory": "\\b(\\d+)\\b",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "attorney_general",
+    "canonical_name": "ATTORNEY GENERAL",
+    "type": "state",
+    "pattern": "ATTORNEY GENERAL",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "commissioner_of_agriculture",
+    "canonical_name": "COMMISSIONER OF AGRICULTURE",
+    "type": "state",
+    "pattern": "COMMISSIONER OF AGRICULTURE",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "commissioner_of_insurance",
+    "canonical_name": "COMMISSIONER OF INSURANCE",
+    "type": "state",
+    "pattern": "COMMISSIONER OF INSURANCE",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "commissioner_of_labor",
+    "canonical_name": "COMMISSIONER OF LABOR",
+    "type": "state",
+    "pattern": "COMMISSIONER OF LABOR",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "county_board_of_education",
+    "canonical_name": "COUNTY BOARD OF EDUCATION",
+    "type": "county",
+    "pattern": "COUNTY BOE|BD OF EDUCATION|BRD OF EDUCATION|BOARD OF EDUCATION|SCHOOL BOARD|BOE|EDUCCA",
+    "subcategory": "\\b(\\d+)\\b",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "county_boe_chair",
+    "canonical_name": "COUNTY BOE CHAIR",
+    "type": "county",
+    "pattern": "COUNTY BOE CHAIR",
+    "subcategory": "\\b(\\d+)\\b",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "county_board_of_elections",
+    "canonical_name": "COUNTY BOARD OF ELECTIONS",
+    "type": "county",
+    "pattern": "BOARD OF ELECTIONS",
+    "subcategory": "\\b(\\d+)\\b",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "county_commission",
+    "canonical_name": "COUNTY COMMISSION",
+    "type": "county",
+    "pattern": "COUNTY COMMISSION|COUNTY COMM",
+    "subcategory": "\\b(\\d+)\\b",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "city_council",
+    "canonical_name": "CITY COUNCIL",
+    "type": "county",
+    "pattern": "CITY COUNCIL|COUNCIL",
+    "subcategory": "\\b(\\d+)\\b",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "board_of_commissioners",
+    "canonical_name": "BOARD OF COMMISSIONERS",
+    "type": "county",
+    "pattern": "(BOARD|BD) OF COMMISSION",
+    "subcategory": "\\b(\\d+)\\b",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "county_commission_chairperson",
+    "canonical_name": "COUNTY COMMISSION CHAIRPERSON",
+    "type": "county",
+    "pattern": "COUNTY COMMISSION CHAIRPERSON",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "governor",
+    "canonical_name": "GOVERNOR",
+    "type": "state",
+    "pattern": "GOVERNOR",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "lieutenant_governor",
+    "canonical_name": "LIEUTENANT GOVERNOR",
+    "type": "state",
+    "pattern": "LIEUTENANT GOVERNOR",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "public_service_commissioner",
+    "canonical_name": "PUBLIC SERVICE COMMISSIONER",
+    "type": "state",
+    "pattern": "PUBLIC SERVICE COMMISSIONER|\\bPSC\\b",
+    "subcategory": "\\b(\\d+)\\b",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "secretary_of_state",
+    "canonical_name": "SECRETARY OF STATE",
+    "type": "state",
+    "pattern": "SECRETARY OF STATE",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "state_school_superintendent",
+    "canonical_name": "STATE SCHOOL SUPERINTENDENT",
+    "type": "state",
+    "pattern": "STATE SCHOOL SUPERINTENDENT",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "question",
+    "canonical_name": "QUESTION",
+    "type": "county",
+    "pattern": "QUESTION|QUESITON|REGULATE|BY THE DRINK|PACKAGE|SUNDAY SALES|IMPROVEMENT BOND|REFERENDUM|DISTILLED",
+    "is_question": true
+  },
+  {
+    "category": "tsplost",
+    "canonical_name": "TSPLOST",
+    "type": "county",
+    "pattern": "T-?SPLOST|TRANS.*SPLOST",
+    "is_question": true
+  },
+  {
+    "category": "esplost",
+    "canonical_name": "ESPLOST",
+    "type": "county",
+    "pattern": "E-?SPLOST|EDUCATIONAL SALE(S)? TAX|EDCUATIONAL SALE(S)? TAX|EDUCATIONAL SPLOST",
+    "is_question": true
+  },
+  {
+    "category": "splost",
+    "canonical_name": "[^ET]SPLOST",
+    "type": "county",
+    "pattern": "SPLOST",
+    "is_question": true
+  },
+  {
+    "category": "solicitor_general",
+    "canonical_name": "SOLICITOR GENERAL",
+    "type": "state",
+    "pattern": "SOLICITOR[\\s-]GENERAL",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "tax_commissioner",
+    "canonical_name": "TAX COMMISSIONER",
+    "type": "county",
+    "pattern": "TAX COMMISSIONER",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "court_of_appeals",
+    "canonical_name": "COURT OF APPEALS",
+    "type": "state",
+    "pattern": "COURT OF APPEALS",
+    "ambiguous": true
+  },
+  {
+    "category": "supreme_court",
+    "canonical_name": "SUPREME COURT",
+    "type": "state",
+    "pattern": "SUPREME COURT",
+    "ambiguous": true
+  },
+  {
+    "category": "superior_court",
+    "canonical_name": "SUPERIOR COURT",
+    "type": "state",
+    "pattern": "SUPERIOR COURT",
+    "ambiguous": true
+  },
+  {
+    "category": "district_attorney",
+    "canonical_name": "DISTRICT ATTORNEY",
+    "type": "state",
+    "pattern": "DISTRICT ATTORNEY",
+    "ambiguous": true
+  },
+  {
+    "category": "chief_magistrate",
+    "canonical_name": "CHIEF MAGISTRATE",
+    "type": "county",
+    "pattern": "CHIEF MAGISTRATE",
+    "ambiguous": true
+  },
+  {
+    "category": "state_court_judge",
+    "canonical_name": "STATE COURT JUDGE",
+    "type": "state",
+    "pattern": "STATE COURT JUDGE|JUDE?GE.*STATE COURT",
+    "ambiguous": true
+  },
+  {
+    "category": "probate_judge",
+    "canonical_name": "PROBATE JUDGE",
+    "type": "county",
+    "pattern": "PROBATE JUDGE"
+  },
+  {
+    "category": "magistrate_court_judge",
+    "canonical_name": "MAGISTRATE COURT JUDGE",
+    "type": "state",
+    "pattern": "MAGISTRATE (COURT )?JUDGE|JUDE?GE.*MAGISTRATE COURT",
+    "ambiguous": true
+  },
+  {
+    "category": "state_court_solicitor",
+    "canonical_name": "STATE COURT SOLICITOR",
+    "type": "state",
+    "pattern": "STATE COURT SOLICITOR|SOLICITOR.*STATE COURT",
+    "ambiguous": true
+  },
+  {
+    "category": "solicitor",
+    "canonical_name": "COUNTY SOLICITOR",
+    "type": "county",
+    "pattern": "COUNTY SOLICITOR|(^SOLICITOR)",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "mayor",
+    "canonical_name": "MAYOR",
+    "type": "county",
+    "pattern": "MAYOR",
+    "ambiguous": true
+  },
+  {
+    "category": "water_commission",
+    "canonical_name": "WATER COMMISSION",
+    "type": "county",
+    "pattern": "WATER",
+    "ambiguous": true
+  },
+  {
+    "category": "county_surveyor",
+    "canonical_name": "COUNTY SURVEYOR",
+    "type": "county",
+    "pattern": "COUNTY SURVEYOR",
+    "party": "\\b(REP)\\b|\\b(DEM)\\b|"
+  },
+  {
+    "category": "chief_recorders_court_judge",
+    "canonical_name": "CHIEF RECORDERS COURT JUDGE",
+    "type": "county",
+    "pattern": "CHIEF RECORDERS COURT JUDGE"
+  },
+  {
+    "category": "recorders_court_judge",
+    "canonical_name": "RECORDERS COURT JUDGE",
+    "type": "county",
+    "pattern": "^RECORDERS COURT JUDGE"
+  },
+  {
+    "category": "juvenile_court_judge",
+    "canonical_name": "JUVENILE COURT JUDGE",
+    "type": "county",
+    "pattern": "JUVENILE COURT JUDGE"
+  },
+  {
+    "category": "city_commissioner",
+    "canonical_name": "COMMISSIONER",
+    "type": "county",
+    "pattern": "^COMMISSIONER",
+    "subcategory": "\\b(\\d+)\\b"
   }
-}
+]
