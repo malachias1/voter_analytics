@@ -8,10 +8,16 @@ output: html_notebook
 library(tidycensus)
 library(geojsonsf)
 library(DBI)
+library(tidyverse)
 ```
+```{r}
+db <- dbConnect(RSQLite::SQLite(), '~/Documents/data/ga/voter.db')
+```
+# Block Group Geometry
+
+Insert block group geometry for the state of Georgia
 
 ```{r}
-# total educational attainment
 total <- get_acs(year = 2020, geography = 'block group',
                  variables = 'B15003_001', state = 'ga',
                  geometry = T) %>%
@@ -26,37 +32,270 @@ block_groups <- tibble(GEOID = total$GEOID, geometry = total.geometry) %>%
          block_group = substr(GEOID, 12, 12)) %>%
   relocate(geometry, .after = block_group)
 
-```
-```{r}
-db <- dbConnect(RSQLite::SQLite(), '~/Documents/data/ga/voter.db')
-```
-```{r}
-dbListTables(db)
-```
-```{r}
-dbGetQuery(db, 'SELECT * FROM voter_name LIMIT 5')
+dbWriteTable(db, 'block_groups', block_groups)
 
 ```
+
+
+
 ```{r}
-dbWriteTable(db, 'block_groups', block_groups)
-```
-```{r}
-# total educational attainment
-other <- get_acs(year = 2020, geography = 'block group',
-                 variables = c('B15003_001',
-                               "B05009_001E", "B05009_002E", 'B05009_020E',
-                               'B06009_001E', 'B06009_002E', 'B06009_003E', 'B06009_004E', 'B06009_004E'), state = 'ga') %>%
+# median_household_income
+
+x <- get_acs(year = 2020, geography = 'block group',
+             variables = "B19013_001E",
+             state = 'ga') %>%
+  select(-NAME) %>%
   mutate(state = substr(GEOID, 1, 2),
          county = substr(GEOID, 3, 5),
          tract = substr(GEOID, 6, 11),
-         block_group = substr(GEOID, 12, 12))
+         block_group = substr(GEOID, 12, 12)) %>%
+  pivot_wider(names_from = 'variable', values_from = c('estimate', 'moe'))
 
-other
+colnames(x) <-
+  c('GEOID',
+    'state',
+    'county',
+    'tract',
+    'block_group',
+    'median_household_income',
+    'median_household_income_moe'
+  )
+
+x <- x %>%
+  mutate(GEOID = as.character(GEOID),
+         state = as.character(state),
+         county = as.character(county),
+         tract = as.character(tract),
+         block_group = as.character(block_group),
+         median_household_income = as.numeric(median_household_income),
+         median_household_income_moe = as.numeric(median_household_income_moe))
+
+dbWriteTable(db, 'median_house_hold_income', x, overwrite = T)
+```
+
+```{r}
+# educational attainment
+
+x <- get_acs(year = 2020, geography = 'block group',
+             variables = c('B15003_001E', 'B15003_017E', 'B15003_018E', 'B15003_019E', 'B15003_020E',
+                           'B15003_021E', 'B15003_022E', 'B15003_023E', 'B15003_024E', 'B15003_025E'),
+             state = 'ga') %>%
+  select(-NAME) %>%
+  mutate(state = substr(GEOID, 1, 2),
+         county = substr(GEOID, 3, 5),
+         tract = substr(GEOID, 6, 11),
+         block_group = substr(GEOID, 12, 12)) %>%
+  pivot_wider(names_from = 'variable', values_from = c('estimate', 'moe'))
+
+colnames(x) <-
+  c('GEOID',
+    'state',
+    'county',
+    'tract',
+    'block_group',
+    'educational_attainment_total',
+    'educational_attainment_regular_high_school_diploma',
+    'educational_attainment_ged_or_alternative_credential',
+    'educational_attainment_some_college_less_than_1_year',
+    'educational_attainment_some_college_1_or_more_years_no_degree',
+    'educational_attainment_associates_degree',
+    'educational_attainment_bachelors_degree',
+    'educational_attainment_masters_degree',
+    'educational_attainment_professional_school_degree',
+    'educational_attainment_doctorate_degree',
+    'educational_attainment_total_moe',
+    'educational_attainment_regular_high_school_diploma_moe',
+    'educational_attainment_ged_or_alternative_credential_moe',
+    'educational_attainment_some_college_less_than_1_year_moe',
+    'educational_attainment_some_college_1_or_more_years_no_degree_moe',
+    'educational_attainment_associates_degree_moe',
+    'educational_attainment_bachelors_degree_moe',
+    'educational_attainment_masters_degree_moe',
+    'educational_attainment_professional_school_degree_moe',
+    'educational_attainment_doctorate_degree_moe'
+  )
+
+x <- x %>%
+  mutate(GEOID = as.character(GEOID),
+         state = as.character(state),
+         county = as.character(county),
+         tract = as.character(tract),
+         block_group = as.character(block_group),
+         educational_attainment_total = as.numeric(educational_attainment_total),
+         educational_attainment_regular_high_school_diploma = as.numeric(educational_attainment_regular_high_school_diploma),
+         educational_attainment_ged_or_alternative_credential = as.numeric(educational_attainment_ged_or_alternative_credential),
+         educational_attainment_some_college_less_than_1_year = as.numeric(educational_attainment_some_college_less_than_1_year),
+         educational_attainment_some_college_1_or_more_years_no_degree = as.numeric(educational_attainment_some_college_1_or_more_years_no_degree),
+         educational_attainment_associates_degree = as.numeric(educational_attainment_associates_degree),
+         educational_attainment_bachelors_degree = as.numeric(educational_attainment_bachelors_degree),
+         educational_attainment_masters_degree = as.numeric(educational_attainment_masters_degree),
+         educational_attainment_professional_school_degree = as.numeric(educational_attainment_professional_school_degree),
+         educational_attainment_doctorate_degree = as.numeric(educational_attainment_doctorate_degree),
+         educational_attainment_total_moe = as.numeric(educational_attainment_total_moe),
+         educational_attainment_regular_high_school_diploma_moe = as.numeric(educational_attainment_regular_high_school_diploma_moe),
+         educational_attainment_ged_or_alternative_credential_moe = as.numeric(educational_attainment_ged_or_alternative_credential_moe),
+         educational_attainment_some_college_less_than_1_year_moe = as.numeric(educational_attainment_some_college_less_than_1_year_moe),
+         educational_attainment_some_college_1_or_more_years_no_degree_moe = as.numeric(educational_attainment_some_college_1_or_more_years_no_degree_moe),
+         educational_attainment_associates_degree_moe = as.numeric(educational_attainment_associates_degree_moe),
+         educational_attainment_bachelors_degree_moe = as.numeric(educational_attainment_bachelors_degree_moe),
+         educational_attainment_masters_degree_moe = as.numeric(educational_attainment_masters_degree_moe),
+         educational_attainment_professional_school_degree_moe = as.numeric(educational_attainment_professional_school_degree_moe),
+         educational_attainment_doctorate_degree_moe = as.numeric(educational_attainment_doctorate_degree_moe))
+
+dbWriteTable(db, 'educational_attainment', x, overwrite = T)
+```
+```{r}
+# work travel time
+
+x <- get_acs(year = 2020, geography = 'block group',
+             variables = c('B08134_001E', 'B08134_002E', 'B08134_003E', 'B08134_004E', 'B08134_005E',
+                           'B08134_006E', 'B08134_007E', 'B08134_008E', 'B08134_009E', 'B08134_010E'),
+             state = 'ga') %>%
+  select(-NAME) %>%
+  mutate(state = substr(GEOID, 1, 2),
+         county = substr(GEOID, 3, 5),
+         tract = substr(GEOID, 6, 11),
+         block_group = substr(GEOID, 12, 12)) %>%
+  pivot_wider(names_from = 'variable', values_from = c('estimate', 'moe'))
+
+colnames(x) <-
+  c('GEOID',
+    'state',
+    'county',
+    'tract',
+    'block_group',
+    'work_travel_time_total',
+    'work_travel_time_less_than_10_minutes',
+    'work_travel_time_10_to_14_minutes',
+    'work_travel_time_15_to_19_minutes',
+    'work_travel_time_20_to_24_minutes',
+    'work_travel_time_25_to_29_minutes',
+    'work_travel_time_30_to_34_minutes',
+    'work_travel_time_35_to_44_minutes',
+    'work_travel_time_45_to_59_minutes',
+    'work_travel_time_60_or_more_minutes',
+    'work_travel_time_total_moe',
+    'work_travel_time_less_than_10_minutes_moe',
+    'work_travel_time_10_to_14_minutes_moe',
+    'work_travel_time_15_to_19_minutes_moe',
+    'work_travel_time_20_to_24_minutes_moe',
+    'work_travel_time_25_to_29_minutes_moe',
+    'work_travel_time_30_to_34_minutes_moe',
+    'work_travel_time_35_to_44_minutes_moe',
+    'work_travel_time_45_to_59_minutes_moe',
+    'work_travel_time_60_or_more_minutes_moe'
+  )
+
+x <- x %>%
+  mutate(GEOID = as.character(GEOID),
+         state = as.character(state),
+         county = as.character(county),
+         tract = as.character(tract),
+         block_group = as.character(block_group),
+         work_travel_time_total = as.numeric(work_travel_time_total),
+         work_travel_time_less_than_10_minutes = as.numeric(work_travel_time_less_than_10_minutes),
+         work_travel_time_10_to_14_minutes = as.numeric(work_travel_time_10_to_14_minutes),
+         work_travel_time_15_to_19_minutes = as.numeric(work_travel_time_15_to_19_minutes),
+         work_travel_time_20_to_24_minutes = as.numeric(work_travel_time_20_to_24_minutes),
+         work_travel_time_25_to_29_minutes = as.numeric(work_travel_time_25_to_29_minutes),
+         work_travel_time_30_to_34_minutes = as.numeric(work_travel_time_30_to_34_minutes),
+         work_travel_time_35_to_44_minutes = as.numeric(work_travel_time_35_to_44_minutes),
+         work_travel_time_45_to_59_minutes = as.numeric(work_travel_time_45_to_59_minutes),
+         work_travel_time_60_or_more_minutes = as.numeric(work_travel_time_60_or_more_minutes),
+         work_travel_time_total_moe = as.numeric(work_travel_time_total_moe),
+         work_travel_time_less_than_10_minutes_moe = as.numeric(work_travel_time_less_than_10_minutes_moe),
+         work_travel_time_10_to_14_minutes_moe = as.numeric(work_travel_time_10_to_14_minutes_moe),
+         work_travel_time_15_to_19_minutes_moe = as.numeric(work_travel_time_15_to_19_minutes_moe),
+         work_travel_time_20_to_24_minutes_moe = as.numeric(work_travel_time_20_to_24_minutes_moe),
+         work_travel_time_25_to_29_minutes_moe = as.numeric(work_travel_time_25_to_29_minutes_moe),
+         work_travel_time_30_to_34_minutes_moe = as.numeric(work_travel_time_30_to_34_minutes_moe),
+         work_travel_time_35_to_44_minutes_moe = as.numeric(work_travel_time_35_to_44_minutes_moe),
+         work_travel_time_45_to_59_minutes_moe = as.numeric(work_travel_time_45_to_59_minutes_moe),
+         work_travel_time_60_or_more_minutes_moe = as.numeric(work_travel_time_60_or_more_minutes_moe)
+  )
+
+dbWriteTable(db, 'work_travel_time', x, overwrite = T)
+```
+```{r}
+
+# Children
+
+x <- get_acs(year = 2020, geography = 'block group',
+             variables = c('B01001_001E',
+                           'B01001_003E', 'B01001_004E', 'B01001_005E', 'B01001_006E',
+                           'B01001_027E', 'B01001_028E', 'B01001_029E', 'B01001_030E'),
+             state = 'ga') %>%
+  select(-NAME) %>%
+  mutate(state = substr(GEOID, 1, 2),
+         county = substr(GEOID, 3, 5),
+         tract = substr(GEOID, 6, 11),
+         block_group = substr(GEOID, 12, 12)) %>%
+  pivot_wider(names_from = 'variable', values_from = c('estimate', 'moe'))
+
+colnames(x) <-
+  c('GEOID',
+    'state',
+    'county',
+    'tract',
+    'block_group',
+    'total',
+    'male_under_5',
+    'male_5_to_9',
+    'male_10_to_14',
+    'male_15_to_17',
+    'female_under_5',
+    'female_5_to_9',
+    'female_10_to_14',
+    'female_15_to_17',
+    'total_moe',
+    'male_under_5_moe',
+    'male_5_to_9_moe',
+    'male_10_to_14_moe',
+    'male_15_to_17_moe',
+    'female_under_5_moe',
+    'female_5_to_9_moe',
+    'female_10_to_14_moe',
+    'female_15_to_17_moe'
+  )
+
+x <- x %>%
+  mutate(GEOID = as.character(GEOID),
+         state = as.character(state),
+         county = as.character(county),
+         tract = as.character(tract),
+         block_group = as.character(block_group),
+         total = as.numeric(total),
+         male_under_5 = as.numeric(male_under_5),
+         male_5_to_9 = as.numeric(male_5_to_9),
+         male_10_to_14 = as.numeric(male_10_to_14),
+         male_15_to_17 = as.numeric(male_15_to_17),
+         female_under_5 = as.numeric(female_under_5),
+         female_5_to_9 = as.numeric(female_5_to_9),
+         female_10_to_14 = as.numeric(female_10_to_14),
+         female_15_to_17 = as.numeric(female_15_to_17),
+         total_moe = as.numeric(total_moe),
+         male_under_5_moe = as.numeric(male_under_5_moe),
+         male_5_to_9_moe = as.numeric(male_5_to_9_moe),
+         male_10_to_14_moe = as.numeric(male_10_to_14_moe),
+         male_15_to_17_moe = as.numeric(male_15_to_17_moe),
+         female_under_5_moe = as.numeric(female_under_5_moe),
+         female_5_to_9_moe = as.numeric(female_5_to_9_moe),
+         female_10_to_14_moe = as.numeric(female_10_to_14_moe),
+         female_15_to_17_moe = as.numeric(female_15_to_17_moe)
+  )
+
+dbWriteTable(db, 'children', x, overwrite = T)
+```
+
+```{r}
+v20 <- load_variables(2020, "acs5", cache = TRUE)
+
+View(v20)
 ```
 ```{r}
 # total educational attainment
 other <- get_acs(year = 2020, geography = 'block group',
-                 variables = c("B19013_001E",
+                 variables = c("B19013_001E", # median
                                'B15003_001E', 'B15003_017E', 'B15003_018E', 'B15003_019E', 'B15003_020E',
                                'B15003_021E', 'B15003_022E', 'B15003_023E', 'B15003_024E', 'B15003_025E',
                                'B08134_001E', 'B08134_002E', 'B08134_003E', 'B08134_004E', 'B08134_005E',
@@ -70,115 +309,112 @@ other <- get_acs(year = 2020, geography = 'block group',
 
 other
 ```
-```{r}
-v20 <- load_variables(2020, "acs5", cache = TRUE)
 
-View(v20)
-```
+
 ```{r}
 attributes <- other %>%
   select(-NAME)
 
 colnames(attributes) <-
-c('GEOID',
-  'state',
-  'county',
-  'tract',
-  'block_group',
-  'work_travel_time_total',
-  'work_travel_time_less_than_10_minutes',
-  'work_travel_time_10_to_14_minutes',
-  'work_travel_time_15_to_19_minutes',
-  'work_travel_time_20_to_24_minutes',
-  'work_travel_time_25_to_29_minutes',
-  'work_travel_time_30_to_34_minutes',
-  'work_travel_time_35_to_44_minutes',
-  'work_travel_time_45_to_59_minutes',
-  'work_travel_time_60_or_more_minutes',
-  'educational_attainment_total',
-  'educational_attainment_regular_high_school_diploma',
-  'educational_attainment_ged_or_alternative_credential',
-  'educational_attainment_some_college_less_than_1_year',
-  'educational_attainment_some_college_1_or_more_years,_no_degree',
-  'educational_attainment_associates_degree',
-  'educational_attainment_bachelors_degree',
-  'educational_attainment_masters_degree',
-  'educational_attainment_professional_school_degree',
-  'educational_attainment_doctorate_degree',
-  'median_household_income',
-  'work_travel_time_total_moe',
-  'work_travel_time_less_than_10_minutes_moe',
-  'work_travel_time_10_to_14_minutes_moe',
-  'work_travel_time_15_to_19_minutes_moe',
-  'work_travel_time_20_to_24_minutes_moe',
-  'work_travel_time_25_to_29_minutes_moe',
-  'work_travel_time_30_to_34_minutes_moe',
-  'work_travel_time_35_to_44_minutes_moe',
-  'work_travel_time_45_to_59_minutes_moe',
-  'work_travel_time_60_or_more_minutes_moe',
-  'educational_attainment_total_moe',
-  'educational_attainment_regular_high_school_diploma_moe',
-  'educational_attainment_ged_or_alternative_credential_moe',
-  'educational_attainment_some_college_less_than_1_year_moe',
-  'educational_attainment_some_college_1_or_more_years_no_degree_moe',
-  'educational_attainment_associates_degree_moe',
-  'educational_attainment_bachelors_degree_moe',
-  'educational_attainment_masters_degree_moe',
-  'educational_attainment_professional_school_degree_moe',
-  'educational_attainment_doctorate_degree_moe',
-  'median_household_income_moe'
-)
+  c('GEOID',
+    'state',
+    'county',
+    'tract',
+    'block_group',
+    'work_travel_time_total',
+    'work_travel_time_less_than_10_minutes',
+    'work_travel_time_10_to_14_minutes',
+    'work_travel_time_15_to_19_minutes',
+    'work_travel_time_20_to_24_minutes',
+    'work_travel_time_25_to_29_minutes',
+    'work_travel_time_30_to_34_minutes',
+    'work_travel_time_35_to_44_minutes',
+    'work_travel_time_45_to_59_minutes',
+    'work_travel_time_60_or_more_minutes',
+    'educational_attainment_total',
+    'educational_attainment_regular_high_school_diploma',
+    'educational_attainment_ged_or_alternative_credential',
+    'educational_attainment_some_college_less_than_1_year',
+    'educational_attainment_some_college_1_or_more_years,_no_degree',
+    'educational_attainment_associates_degree',
+    'educational_attainment_bachelors_degree',
+    'educational_attainment_masters_degree',
+    'educational_attainment_professional_school_degree',
+    'educational_attainment_doctorate_degree',
+    'median_household_income',
+    'work_travel_time_total_moe',
+    'work_travel_time_less_than_10_minutes_moe',
+    'work_travel_time_10_to_14_minutes_moe',
+    'work_travel_time_15_to_19_minutes_moe',
+    'work_travel_time_20_to_24_minutes_moe',
+    'work_travel_time_25_to_29_minutes_moe',
+    'work_travel_time_30_to_34_minutes_moe',
+    'work_travel_time_35_to_44_minutes_moe',
+    'work_travel_time_45_to_59_minutes_moe',
+    'work_travel_time_60_or_more_minutes_moe',
+    'educational_attainment_total_moe',
+    'educational_attainment_regular_high_school_diploma_moe',
+    'educational_attainment_ged_or_alternative_credential_moe',
+    'educational_attainment_some_college_less_than_1_year_moe',
+    'educational_attainment_some_college_1_or_more_years_no_degree_moe',
+    'educational_attainment_associates_degree_moe',
+    'educational_attainment_bachelors_degree_moe',
+    'educational_attainment_masters_degree_moe',
+    'educational_attainment_professional_school_degree_moe',
+    'educational_attainment_doctorate_degree_moe',
+    'median_household_income_moe'
+  )
 ```
 ```{r}
 
 colnames(attributes) <-
-c('GEOID',
-  'state',
-  'county',
-  'tract',
-  'block_group',
-  'work_travel_time_total',
-  'work_travel_time_less_than_10_minutes',
-  'work_travel_time_10_to_14_minutes',
-  'work_travel_time_15_to_19_minutes',
-  'work_travel_time_20_to_24_minutes',
-  'work_travel_time_25_to_29_minutes',
-  'work_travel_time_30_to_34_minutes',
-  'work_travel_time_35_to_44_minutes',
-  'work_travel_time_45_to_59_minutes',
-  'work_travel_time_60_or_more_minutes',
-  'educational_attainment_total',
-  'educational_attainment_regular_high_school_diploma',
-  'educational_attainment_ged_or_alternative_credential',
-  'educational_attainment_some_college_less_than_1_year',
-  'educational_attainment_some_college_1_or_more_years,_no_degree',
-  'educational_attainment_associates_degree',
-  'educational_attainment_bachelors_degree',
-  'educational_attainment_masters_degree',
-  'educational_attainment_professional_school_degree',
-  'educational_attainment_doctorate_degree',
-  'median_household_income',
-  'work_travel_time_total_moe',
-  'work_travel_time_less_than_10_minutes_moe',
-  'work_travel_time_10_to_14_minutes_moe',
-  'work_travel_time_15_to_19_minutes_moe',
-  'work_travel_time_20_to_24_minutes_moe',
-  'work_travel_time_25_to_29_minutes_moe',
-  'work_travel_time_30_to_34_minutes_moe',
-  'work_travel_time_35_to_44_minutes_moe',
-  'work_travel_time_45_to_59_minutes_moe',
-  'work_travel_time_60_or_more_minutes_moe',
-  'educational_attainment_total_moe',
-  'educational_attainment_regular_high_school_diploma_moe',
-  'educational_attainment_ged_or_alternative_credential_moe',
-  'educational_attainment_some_college_less_than_1_year_moe',
-  'educational_attainment_some_college_1_or_more_years_no_degree_moe',
-  'educational_attainment_associates_degree_moe',
-  'educational_attainment_bachelors_degree_moe',
-  'educational_attainment_masters_degree_moe',
-  'educational_attainment_professional_school_degree_moe',
-  'educational_attainment_doctorate_degree_moe',
-  'median_household_income_moe'
-)
+  c('GEOID',
+    'state',
+    'county',
+    'tract',
+    'block_group',
+    'work_travel_time_total',
+    'work_travel_time_less_than_10_minutes',
+    'work_travel_time_10_to_14_minutes',
+    'work_travel_time_15_to_19_minutes',
+    'work_travel_time_20_to_24_minutes',
+    'work_travel_time_25_to_29_minutes',
+    'work_travel_time_30_to_34_minutes',
+    'work_travel_time_35_to_44_minutes',
+    'work_travel_time_45_to_59_minutes',
+    'work_travel_time_60_or_more_minutes',
+    'educational_attainment_total',
+    'educational_attainment_regular_high_school_diploma',
+    'educational_attainment_ged_or_alternative_credential',
+    'educational_attainment_some_college_less_than_1_year',
+    'educational_attainment_some_college_1_or_more_years,_no_degree',
+    'educational_attainment_associates_degree',
+    'educational_attainment_bachelors_degree',
+    'educational_attainment_masters_degree',
+    'educational_attainment_professional_school_degree',
+    'educational_attainment_doctorate_degree',
+    'median_household_income',
+    'work_travel_time_total_moe',
+    'work_travel_time_less_than_10_minutes_moe',
+    'work_travel_time_10_to_14_minutes_moe',
+    'work_travel_time_15_to_19_minutes_moe',
+    'work_travel_time_20_to_24_minutes_moe',
+    'work_travel_time_25_to_29_minutes_moe',
+    'work_travel_time_30_to_34_minutes_moe',
+    'work_travel_time_35_to_44_minutes_moe',
+    'work_travel_time_45_to_59_minutes_moe',
+    'work_travel_time_60_or_more_minutes_moe',
+    'educational_attainment_total_moe',
+    'educational_attainment_regular_high_school_diploma_moe',
+    'educational_attainment_ged_or_alternative_credential_moe',
+    'educational_attainment_some_college_less_than_1_year_moe',
+    'educational_attainment_some_college_1_or_more_years_no_degree_moe',
+    'educational_attainment_associates_degree_moe',
+    'educational_attainment_bachelors_degree_moe',
+    'educational_attainment_masters_degree_moe',
+    'educational_attainment_professional_school_degree_moe',
+    'educational_attainment_doctorate_degree_moe',
+    'median_household_income_moe'
+  )
 dbWriteTable(db, 'block_group_attributes', attributes)
 ```
