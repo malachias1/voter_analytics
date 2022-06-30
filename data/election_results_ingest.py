@@ -4,7 +4,6 @@ from data.voterdb import VoterDb
 from pathlib import Path
 import xml.etree.ElementTree as Et
 from dateutil import parser
-import time
 import zipfile
 from data.election_contest_identifier import ElectionContestIdentifer
 import shutil
@@ -218,7 +217,7 @@ class IngestElectionResults(Pathes):
                  'is_question',
                  'choice',
                  'party',
-                 'county',
+                 'county_name',
                  'precinct_name',
                  'vote_type',
                  'votes'
@@ -226,14 +225,14 @@ class IngestElectionResults(Pathes):
 
     OVER_COL_NAMES = ['election_date',
                       'contest',
-                      'county',
+                      'county_name',
                       'precinct_name',
                       'overvotes'
                       ]
 
     UNDER_COL_NAMES = ['election_date',
                        'contest',
-                       'county',
+                       'county_name',
                        'precinct_name',
                        'undervotes'
                        ]
@@ -241,23 +240,41 @@ class IngestElectionResults(Pathes):
     def __init__(self, root_dir, state='ga'):
         super().__init__(root_dir, state)
         self.db = VoterDb(root_dir, state)
+        self.county_details = self.db.county_details
 
     @property
     def con(self):
         return self.db.con
 
     def get_contest_results(self, er):
-        return pd.DataFrame.from_records(er.contests,
-                                         columns=self.COL_NAMES) \
-            .assign(timestamp=time.time_ns())
+        df = pd.DataFrame.from_records(er.contests,
+                                       columns=self.COL_NAMES)
+        df = df.merge(self.county_details[['county_code', 'county_name']], on='county_name', how='inner')
+        return df[['election_date',
+                   'contest',
+                   'is_question',
+                   'choice',
+                   'party',
+                   'county_code',
+                   'precinct_name',
+                   'vote_type',
+                   'votes'
+                   ]]
 
     def get_contest_over_under(self, er):
         df1 = pd.DataFrame.from_records(er.overvotes,
                                         columns=self.OVER_COL_NAMES)
         df2 = pd.DataFrame.from_records(er.undervotes,
                                         columns=self.UNDER_COL_NAMES)
-        return df1.merge(df2, on=['election_date', 'contest', 'county', 'precinct_name'], how='inner') \
-            .assign(timestamp=time.time_ns())
+        df3 = df1.merge(df2, on=['election_date', 'contest', 'county_name', 'precinct_name'], how='inner')
+        df4 = df3.merge(self.county_details[['county_code', 'county_name']], on='county_name', how='inner')
+        return df4[['election_date',
+                    'contest',
+                    'county_code',
+                    'precinct_name',
+                    'overvotes',
+                    'undervotes'
+                    ]]
 
     def ingest(self, path):
         for f in Path(path).expanduser().iterdir():
@@ -278,6 +295,8 @@ class IngestElectionResults(Pathes):
                 df_over_under = self.get_contest_over_under(er)
                 self.db.insert_election_results(df_results)
                 self.db.insert_election_results_over_under(df_over_under)
+                new_path = Path(f.parent, 'processed', f.name)
+                shutil.move(f, new_path)
         self.rebuild_contest_class()
 
     def rebuild_contest_class(self):
@@ -286,9 +305,4 @@ class IngestElectionResults(Pathes):
         contest_class = contests[['election_date', 'contest']].apply(lambda row: eci.classify(row[0], row[1]), axis=1)
         contest_class_df = pd.DataFrame.from_records(contest_class).drop_duplicates().reset_index()
         contest_class_df = contest_class_df.assign(id=range(0, len(contest_class_df.index)))
-        contest_class_df1 = contest_class_df.rename(columns={'id': 'contest_class_id'}).drop(columns=['election_date'])
-        contest_class_map = contests.merge(contest_class_df1, on='contest', how='inner')
-        contest_class_map = contest_class_map.rename(columns={'id': 'election_result_id'})
         self.db.replace_contest_class(contest_class_df)
-        self.db.replace_contest_class_map(contest_class_map)
-

@@ -16,12 +16,12 @@ class TestIngestElectionResults(unittest.TestCase):
 
     def test_ingest(self):
         self.sut.ingest('../test_resources/ga/politics/elections')
-        df = self.db.contests
+        df = self.db.election_result_details
         self.assertEqual(57, len(df.contest.unique()))
 
     def test_count(self):
         self.sut.ingest('../test_resources/ga/politics/elections')
-        df1 = self.db.contests
+        df1 = self.db.election_result_details
         df2 = self.db.over_under_votes
         self.assertEqual(6846, len(df1.index)+len(df2.index))
 

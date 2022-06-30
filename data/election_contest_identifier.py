@@ -47,10 +47,9 @@ class ElectionContestIdentifer:
                     'category': pattern['category'],
                     'canonical_name': pattern['canonical_name'],
                     'type': pattern['type'],
-                    'subcategory': subcategory,
+                    'subcategory': f'{int(subcategory):03d}' if subcategory is not None else None,
                     'party': party,
                     'is_question': pattern.get('is_question', False),
                     'ambiguous': ambiguous or pattern.get('ambiguous', False)
                 }
-        print(contest)
         return None
