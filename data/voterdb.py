@@ -1,5 +1,6 @@
 from pathlib import Path
 import sqlite3 as sql
+
 import pandas as pd
 from data.pathes import Pathes
 
@@ -76,6 +77,14 @@ class VoterDb(Pathes):
         return 0
 
     @property
+    def next_vtd_id(self):
+        if self.vtd_maps_exists:
+            df = pd.read_sql_query(f"select max(id) from vtd_map", self.con)
+            if len(df) > 0 and df.iloc[0, 0] is not None:
+                return df.iloc[0, 0] + 1
+        return 0
+
+    @property
     def over_under_votes(self):
         return pd.read_sql_query(f"select * from election_results_over_under", self.con)
 
@@ -136,6 +145,14 @@ class VoterDb(Pathes):
     def vtd_maps(self):
         return pd.read_sql_query(f"select * from vtd_map", self.con)
 
+    @property
+    def vtd_maps_exists(self):
+        q = pd.read_sql_query(f"""
+            select name from sqlite_master where type = 'table' 
+            and name = 'vtd_map';
+        """, self.con)
+        return len(q.index) > 0
+
     def initialize(self):
         """
         Execute schema DDL. The method is idempotent.
@@ -146,6 +163,8 @@ class VoterDb(Pathes):
         with schema_path.open('r') as f:
             schema_ddl = f.read()
             self.run_script(schema_ddl)
+        county_details = pd.read_csv(Path(self.root_dir, 'county_details.csv'))
+        county_details.to_sql('county_details', self.con)
 
     @classmethod
     def as_residence_address_key(cls, row, pos=0):
@@ -188,6 +207,21 @@ class VoterDb(Pathes):
             columns.append('key')
             df = pd.DataFrame(columns=columns)
         return df
+
+    def get_election_results_for_category(self, election_date, category, subcategory):
+        election_results = pd.read_sql_query(f"""
+        select * from election_results where election_date='{election_date}' and contest in (
+            select contest from contest_class where election_date='{election_date}' and
+                category='{category}' and subcategory='{subcategory}'
+            )
+        """, self.con)
+        return election_results
+
+    def get_election_results_for_contest(self, election_date, contest):
+        election_results = pd.read_sql_query(f"""
+        select * from election_results where election_date='{election_date}' and contest='{contest}'
+        """, self.con)
+        return election_results
 
     def get_residence_address(self, address_id):
         return pd.read_sql_query(f"select * from residence_address where address_id={address_id}", self.con)
@@ -270,7 +304,7 @@ class VoterDb(Pathes):
 
     def rebuild_search_table(self):
         cur = self.con.cursor()
-        cur.execute('DELETE FROM voter_search;')
+        cur.execute('delete from voter_search;')
         self.con.commit()
         df1 = pd.read_sql_query(f"select * from address_voter", self.con)
         df2 = pd.read_sql_query(f"select voter_id, last_name, first_name, middle_name from voter_name", self.con)
@@ -322,30 +356,30 @@ class VoterDb(Pathes):
 
     def insert_election_results(self, results):
         # Purge election results for county and date
-        purge = results[['election_date', 'county']].drop_duplicates()
+        purge = results[['election_date', 'county_code']].drop_duplicates()
         if len(purge.index) != 1:
-            raise ValueError(f"Election results contain multiple counties, {', '.join(purge.county.unique())}.")
-        self.executemany(f"delete from election_results where election_date=? and county=?",
+            raise ValueError(f"Election results contain multiple counties, {', '.join(purge.county_code.unique())}.")
+        self.executemany(f"delete from election_results where election_date=? and county_code=?",
                          purge.values.tolist())
 
         # Ensure proper order of columns and insert results
-        results = results[['election_date', 'county', 'contest', 'choice', 'party',
-                           'is_question', 'precinct_name', 'vote_type', 'votes', 'timestamp']]
+        results = results[['election_date', 'county_code', 'contest', 'choice', 'party',
+                           'is_question', 'precinct_name', 'vote_type', 'votes']]
         stmt = f"""
-        insert into election_result_details ('election_date', 'county', 'contest', 'choice', 'party',
-               'is_question', 'precinct_name','vote_type','votes', 'timestamp')
-                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        insert into election_result_details ('election_date', 'county_code', 'contest', 'choice', 'party',
+               'is_question', 'precinct_name','vote_type','votes')
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         self.executemany(stmt, results.values.tolist())
 
-        results_summary = results[['election_date', 'county', 'contest', 'choice', 'party',
+        results_summary = results[['election_date', 'county_code', 'contest', 'choice', 'party',
                                    'is_question', 'precinct_name', 'votes']]
-        results_summary = results_summary.groupby(['election_date', 'county', 'contest', 'choice', 'party',
-                                                   'is_question', 'precinct_name']).sum()
+        results_summary = results_summary.groupby(['election_date', 'county_code', 'contest', 'choice', 'party',
+                                                   'is_question', 'precinct_name'], dropna=False).sum()
         results_summary = results_summary.rename(columns={0: 'votes'}).reset_index()
 
         stmt = f"""
-        insert into election_results ('election_date', 'county', 'contest', 'choice', 'party',
+        insert into election_results ('election_date', 'county_code', 'contest', 'choice', 'party',
                'is_question', 'precinct_name','votes')
                 values (?, ?, ?, ?, ?, ?, ?, ?)
         """
@@ -354,20 +388,20 @@ class VoterDb(Pathes):
     def insert_election_results_over_under(self, over_under):
         # Purge election results over and under counts
         # county and date
-        purge = over_under[['election_date', 'county']].drop_duplicates()
+        purge = over_under[['election_date', 'county_code']].drop_duplicates()
         if len(purge.index) != 1:
             raise ValueError(f"Election results over and under counts contain multiple counties, "
                              f"{', '.join(purge.county.unique())}.")
-        self.executemany(f"delete from election_results_over_under where election_date=? and county=?",
+        self.executemany(f"delete from election_results_over_under where election_date=? and county_code=?",
                          purge.values.tolist())
 
         # Ensure proper order of columns and insert over and under counts
-        over_under = over_under[['election_date', 'county', 'contest',
-                                 'precinct_name', 'overvotes', 'undervotes', 'timestamp']]
+        over_under = over_under[['election_date', 'county_code', 'contest',
+                                 'precinct_name', 'overvotes', 'undervotes']]
         stmt = f"""
-         insert into election_results_over_under ('election_date', 'county', 'contest',
-               'precinct_name', 'overvotes', 'undervotes', 'timestamp')
-               values (?, ?, ?, ?, ?, ?, ?)
+         insert into election_results_over_under ('election_date', 'county_code', 'contest',
+               'precinct_name', 'overvotes', 'undervotes')
+               values (?, ?, ?, ?, ?, ?)
 
        """
         self.executemany(stmt, over_under.values.tolist())

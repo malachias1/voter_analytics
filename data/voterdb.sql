@@ -1,10 +1,3 @@
-CREATE TABLE IF NOT EXISTS county_details
-(
-    county_code     text not null,
-    county_fp       text not null,
-    county_name     text not null
-);
-
 CREATE TABLE IF NOT EXISTS precinct_details
 (
     id              integer primary key,
@@ -32,33 +25,27 @@ CREATE TABLE IF NOT EXISTS contest_class
 CREATE INDEX IF NOT EXISTS election_results_county_idx ON contest_class (election_date);
 CREATE INDEX IF NOT EXISTS contest_class_idx ON contest_class (election_date, category, subcategory);
 
-CREATE TABLE IF NOT EXISTS contest_class_map
-(
-    election_date  text not null,
-    election_result_id integer not null,
-    contest_class_id integer not null
-);
-
 CREATE TABLE IF NOT EXISTS election_result_details
 (
     id integer primary key,
     election_date  text not null,
-    county         text not null,
+    county_code         text not null,
     contest        text not null,
     choice         text not null,
     party          text,
     is_question    bool not null,
     precinct_name  text not null,
     vote_type      text not null,
-    votes          integer not null,
-    timestamp integer not null
+    votes          integer not null
 );
+
+CREATE INDEX IF NOT EXISTS election_result_details_county_idx ON election_result_details (election_date, county_code);
 
 CREATE TABLE IF NOT EXISTS election_results
 (
     id integer primary key,
     election_date  text not null,
-    county         text not null,
+    county_code         text not null,
     contest        text not null,
     choice         text not null,
     party          text,
@@ -67,7 +54,7 @@ CREATE TABLE IF NOT EXISTS election_results
     votes          integer not null
 );
 
-CREATE INDEX IF NOT EXISTS election_results_county_idx ON election_results (election_date, county);
+CREATE INDEX IF NOT EXISTS election_results_county_idx ON election_results (election_date, county_code);
 CREATE INDEX IF NOT EXISTS election_results_contest_idx ON election_results (election_date, contest);
 
 
@@ -76,14 +63,13 @@ CREATE TABLE IF NOT EXISTS election_results_over_under
     id integer primary key,
     election_date     text not null,
     contest         text not null,
-    county     text not null,
+    county_code     text not null,
     precinct_name   text not null,
     overvotes           integer not null,
-    undervotes           integer not null,
-    timestamp integer not null
+    undervotes           integer not null
 );
 
-CREATE INDEX IF NOT EXISTS election_results_county_over_under_idx ON election_results_over_under (election_date, county);
+CREATE INDEX IF NOT EXISTS election_results_county_over_under_idx ON election_results_over_under (election_date, county_code);
 
 CREATE INDEX IF NOT EXISTS election_results_contest_over_under_idx ON election_results_over_under (election_date, contest);
 
@@ -201,17 +187,23 @@ CREATE TABLE IF NOT EXISTS voter_cng
     cng text not null
 );
 
+CREATE INDEX IF NOT EXISTS voter_cng_idx ON voter_cng (cng);
+
 CREATE TABLE IF NOT EXISTS voter_sen
 (
     voter_id text primary key,
     sen text not null
 );
 
+CREATE INDEX IF NOT EXISTS voter_sen_idx ON voter_sen (sen);
+
 CREATE TABLE IF NOT EXISTS voter_hse
 (
     voter_id text primary key,
     hse text not null
 );
+
+CREATE INDEX IF NOT EXISTS voter_hse_idx ON voter_hse (hse);
 
 CREATE TABLE IF NOT EXISTS precinct_summary
 (
