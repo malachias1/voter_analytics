@@ -1,7 +1,7 @@
 import unittest
 from data.voterdb import VoterDb
 from data.maps_ingest import IngestUSHouseMaps, IngestGAHouseMaps, IngestGASenateMaps
-from maps.district_maps import CngMap, HseMap, SenMap
+from maps.district_maps import CngDistrictMap, HseDistrictMap, SenDistrictMap
 
 
 class TestMaps(unittest.TestCase):
@@ -13,17 +13,17 @@ class TestMaps(unittest.TestCase):
         IngestGASenateMaps(self.root_dir).ingest()
 
     def test_cng_maps(self):
-        sut = CngMap(self.root_dir)
+        sut = CngDistrictMap(self.root_dir)
         x = sut.maps
         self.assertEqual(14, len(x))
 
     def test_hse_maps(self):
-        sut = HseMap(self.root_dir)
+        sut = HseDistrictMap(self.root_dir)
         x = sut.maps
         self.assertEqual(180, len(x))
 
     def test_sen_maps(self):
-        sut = SenMap(self.root_dir)
+        sut = SenDistrictMap(self.root_dir)
         x = sut.maps
         self.assertEqual(56, len(x))
 
