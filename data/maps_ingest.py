@@ -83,33 +83,55 @@ class IngestGASenateMaps(IngestMapsBase):
         return 'sen_map'
 
 
-class IngestVTDMaps(Pathes):
+class IngestVTDMapsBase(Pathes):
     def __init__(self, root_dir, state='ga'):
         super().__init__(root_dir, state)
         self.db = VoterDb(root_dir, state)
 
     @property
+    def dirname(self):
+        raise NotImplemented('dirname method is not implemented.')
+
+    @property
     def filename(self):
-        return 'VTD2020-Shapefile'
+        raise NotImplemented('filename method is not implemented.')
 
     @property
     def tablename(self):
         return 'vtd_map'
 
+    @classmethod
+    def add_county_code(cls, df):
+        raise NotImplemented('add_county_code method is not implemented.')
+
+    @classmethod
+    def add_county_fips(cls, df):
+        raise NotImplemented('add_county_fips method is not implemented.')
+
+    @classmethod
+    def add_county_name(cls, df):
+        raise NotImplemented('add_county_name method is not implemented.')
+
+    def rename_columns(self, df):
+        raise NotImplemented('rename_columns method is not implemented.')
+
+    @classmethod
+    def select_columns(self, df):
+        return df[['area', 'precinct_id', 'precinct_name',
+                   'county_code', 'county_fips', 'county_name',
+                   'center', 'geometry']]
+
     def read_maps(self):
-        p = Path(self.maps_dir, 'vtd', self.filename, f'{self.filename}.shp').expanduser()
+        p = Path(self.maps_dir, 'vtd', self.dirname, f'{self.filename}.shp').expanduser()
         vmaps = gpd.read_file(p).to_crs(epsg=3035)
         vmaps = vmaps.assign(center=vmaps.centroid)
-        vmaps = vmaps[['ID', 'AREA', 'DISTRICT', 'CTYSOSID', 'PRECINCT_I', 'PRECINCT_N', 'CNTY', 'FIPS2',
-                       'CTYNAME', 'geometry', 'center']].reset_index()
-        vmaps = vmaps.rename(columns={'ID': 'id', 'AREA': 'area', 'DISTRICT': 'district', 'CTYSOSID': 'county_sosid',
-                                      'PRECINCT_I': 'precinct_id', 'PRECINCT_N': 'precinct_name',
-                                      'CNTY': 'county_code', 'FIPS2': 'county_fips',
-                                      'CTYNAME': 'county_name'})
-        vmaps = vmaps.dropna()
-        data = {'id': vmaps.id, 'area': vmaps.area,
-                'district': vmaps.district,
-                'county_sosid': vmaps.county_sosid,
+        vmaps = self.rename_columns(vmaps)
+        vmaps = self.add_county_code(vmaps)
+        vmaps = self.add_county_fips(vmaps)
+        vmaps = self.add_county_name(vmaps)
+        vmaps = self.select_columns(vmaps)
+        vmaps = vmaps[vmaps.geometry.notna()]
+        data = {'area': vmaps.area,
                 'precinct_id': vmaps.precinct_id,
                 'precinct_name': vmaps.precinct_name,
                 'county_code': vmaps.county_code,
@@ -119,17 +141,92 @@ class IngestVTDMaps(Pathes):
                 'center_wkb': vmaps.center.to_wkb(hex=True)}
         return pd.DataFrame(data=data)
 
+    def purge_county_vtds(self, c):
+        if self.db.vtd_maps_exists:
+            script = f"""
+                delete from vtd_map where county_code = '{c}';
+            """
+            self.db.run_script(script)
+
     def ingest(self):
-        dmaps = self.read_maps()
+        vmaps = self.read_maps()
         con = self.db.con
-        dmaps.to_sql(self.tablename, con, if_exists='replace', index=False)
+        next_id = self.db.next_vtd_id
+        for c in vmaps.county_code.unique():
+            print(f'county_code {c}')
+            self.purge_county_vtds(c)
+            df = vmaps[vmaps.county_code == c]
+            df.insert(0, 'id', range(next_id, next_id + len(df.index)))
+            next_id += len(df.index)
+            df.to_sql(self.tablename, con, if_exists='append', index=False)
         stmt = f"""
         drop index if exists {self.tablename}_idx;
-        CREATE INDEX IF NOT EXISTS {self.tablename}_idx ON {self.tablename} (county_code);
+        CREATE INDEX IF NOT EXISTS {self.tablename}_idx ON {self.tablename} (county_code, precinct_id);
         """
         self.db.run_script(stmt)
-        county_details = dmaps[['county_code', 'county_fips', 'county_name']].drop_duplicates()
+        county_details = vmaps[['county_code', 'county_fips', 'county_name']].drop_duplicates()
         county_details.to_sql('county_details', con, if_exists='replace', index=False)
+
+
+class IngestStateVTDMaps(IngestVTDMapsBase):
+    def __init__(self, root_dir, state='ga'):
+        super().__init__(root_dir, state)
+
+    @property
+    def dirname(self):
+        return 'VTD2020-Shapefile'
+
+    @property
+    def filename(self):
+        return 'VTD2020-Shapefile'
+
+    @classmethod
+    def add_county_code(cls, df):
+        return df
+
+    @classmethod
+    def add_county_fips(cls, df):
+        return df
+
+    @classmethod
+    def add_county_name(cls, df):
+        return df
+
+    @classmethod
+    def rename_columns(cls, df):
+        return df.rename(columns={'ID': 'id', 'AREA': 'area',
+                                  'PRECINCT_I': 'precinct_id', 'PRECINCT_N': 'precinct_name',
+                                  'CNTY': 'county_code', 'FIPS2': 'county_fips',
+                                  'CTYNAME': 'county_name'})
+
+
+class IngestFultonVTDMaps(IngestVTDMapsBase):
+    def __init__(self, root_dir, state='ga'):
+        super().__init__(root_dir, state)
+
+    @property
+    def dirname(self):
+        return 'fulton_county_2022'
+
+    @property
+    def filename(self):
+        return 'Voting_Precincts'
+
+    @classmethod
+    def add_county_code(cls, df):
+        return df.assign(county_code='060')
+
+    @classmethod
+    def add_county_fips(cls, df):
+        return df.assign(county_fips='121')
+
+    @classmethod
+    def add_county_name(cls, df):
+        return df.assign(county_name='FULTON')
+
+    @classmethod
+    def rename_columns(cls, df):
+        return df.rename(columns={'Shape__Are': 'area', 'VoterDist': 'precinct_id', 'PrecinctN': 'precinct_name'})
 
 
 class IngestCountyMaps(Pathes):
