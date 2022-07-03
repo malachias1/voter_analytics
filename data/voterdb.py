@@ -208,6 +208,9 @@ class VoterDb(Pathes):
             df = pd.DataFrame(columns=columns)
         return df
 
+    def get_county_map(self, county_code):
+        return pd.read_sql_query(f"select * from county_map where county_code='{county_code}'", self.con)
+
     def get_election_results_for_category(self, election_date, category, subcategory):
         election_results = pd.read_sql_query(f"""
         select * from election_results where election_date='{election_date}' and contest in (
@@ -222,6 +225,14 @@ class VoterDb(Pathes):
         select * from election_results where election_date='{election_date}' and contest='{contest}'
         """, self.con)
         return election_results
+
+    def get_precinct_summary(self, county_code):
+        ps = pd.read_sql_query(f"""
+        select pd.precinct_id as x, ps.* from precinct_summary as ps 
+            join precinct_details as pd on ps.precinct_id = pd.id 
+            where county_code='{county_code}'
+        """, self.con).drop(columns='precinct_id').rename(columns={'x': 'precinct_id'})
+        return ps
 
     def get_residence_address(self, address_id):
         return pd.read_sql_query(f"select * from residence_address where address_id={address_id}", self.con)
