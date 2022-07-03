@@ -20,17 +20,6 @@ class PrecinctSegmentation(Pathes):
         dummy = dummy_race.merge(dummy_gender, on='key')
         dummy = dummy.merge(dummy_year_of_birth, on='key')
         dummy = dummy.assign(precinct_id=-1).drop(columns=['key'])
-        #
-        # dummy_seg = dummy.assign(segment=['WH_F_S', 'WH_F_B', 'WH_F_GX', 'WH_F_F', 'WH_F_M', 'WH_M_S', 'WH_M_B',
-        #                                   'WH_M_GX', 'WH_M_F', 'WH_M_M', 'BH_F_S', 'BH_F_B', 'BH_F_GX', 'BH_F_F',
-        #                                   'BH_F_M', 'BH_M_S', 'BH_M_B', 'BH_M_GX', 'BH_M_F', 'BH_M_M', 'U_F_S',
-        #                                   'U_F_B', 'U_F_GX', 'U_F_F', 'U_F_M', 'U_M_S', 'U_M_B', 'U_M_GX', 'U_M_F',
-        #                                   'U_M_M', 'OT_F_S', 'OT_F_B', 'OT_F_GX', 'OT_F_F', 'OT_F_M', 'OT_M_S',
-        #                                   'OT_M_B', 'OT_M_GX', 'OT_M_F', 'OT_M_M', 'HP_F_S', 'HP_F_B', 'HP_F_GX',
-        #                                   'HP_F_F', 'HP_F_M', 'HP_M_S', 'HP_M_B', 'HP_M_GX', 'HP_M_F', 'HP_M_M',
-        #                                   'AI_F_S', 'AI_F_B', 'AI_F_GX', 'AI_F_F', 'AI_F_M', 'AI_M_S', 'AI_M_B',
-        #                                   'AI_M_GX', 'AI_M_F', 'AI_M_M', 'AP_F_S', 'AP_F_B', 'AP_F_GX', 'AP_F_F',
-        #                                   'AP_F_M', 'AP_M_S', 'AP_M_B', 'AP_M_GX', 'AP_M_F', 'AP_M_M'])
         df = pd.concat([df, dummy], axis=0, ignore_index=True)
         df = self.add_generation(df)
         return self.add_segment(df)
@@ -56,13 +45,11 @@ class PrecinctSegmentation(Pathes):
     def add_segment(cls, df):
         return df.assign(segment=df.race_id + '_' + df.gender + '_' + df.gen.astype(str))
 
-    @classmethod
-    def total(cls, df):
-        p_total = df.groupby(['precinct_id']).size().reset_index()
-        p_total.columns.name = None
-        p_total = p_total.reset_index()
-        p_total = p_total.rename(columns={0: 'total'})
-        return p_total[p_total.precinct_id >= 0]
+    def get_precinct_summary(self, county_code):
+        return self.db.get_precinct_summary(county_code)
+
+    def rebuild_precinct_summary(self):
+        self.db.replace_precinct_summary(self.precinct_summary_df)
 
     @classmethod
     def summarize_race(cls, df):
@@ -88,5 +75,10 @@ class PrecinctSegmentation(Pathes):
         p_seg = p_seg.reset_index()
         return p_seg[p_seg.precinct_id >= 0]
 
-    def rebuild_precinct_summary(self):
-        self.db.replace_precinct_summary(self.precinct_summary_df)
+    @classmethod
+    def total(cls, df):
+        p_total = df.groupby(['precinct_id']).size().reset_index()
+        p_total.columns.name = None
+        p_total = p_total.reset_index()
+        p_total = p_total.rename(columns={0: 'total'})
+        return p_total[p_total.precinct_id >= 0]
