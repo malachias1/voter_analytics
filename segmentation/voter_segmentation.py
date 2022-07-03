@@ -113,7 +113,7 @@ class VoterSegmentation(Pathes):
         election_date_types = election_date_types.assign(key=0)
         voters = df[['voter_id']].drop_duplicates()
         voters = voters.assign(key=0)
-        placeholders = voters.merge(election_date_types, on='key', how='outer').drop(columns=['key'])\
+        placeholders = voters.merge(election_date_types, on='key', how='outer').drop(columns=['key']) \
             .reset_index(drop=True)
         df = df.merge(placeholders, on=['voter_id', 'date', 'type'], how='right').reset_index(drop=True)
         df = df.assign(party=df.loc[:, 'party'].fillna('X'))
@@ -218,39 +218,39 @@ class VoterSegmentation(Pathes):
         start = time.perf_counter()
         df = self.gather_history()
         end = time.perf_counter()
-        print(f'Gather time: {end-start:.1f}')
+        print(f'Gather time: {end - start:.1f}')
         start = end
         # save the county info -- I will need it for later. Use the most
         # recent county.
         df_county = self.get_county_info(df)
         end = time.perf_counter()
-        print(f'County Info Time: {end-start:.1f}')
+        print(f'County Info Time: {end - start:.1f}')
         start = end
 
         # Get the first and last vote date -- I will need this later.
         df_first_last = self.get_first_last(df)
         end = time.perf_counter()
-        print(f'First/Last Time: {end-start:.1f}')
+        print(f'First/Last Time: {end - start:.1f}')
         start = end
 
         # Add missing records -- I have a record for casting a
         # ballot and not casting a ballot.
         df = self.add_missing_records(df)
         end = time.perf_counter()
-        print(f'Add Missing Records Time: {end-start:.1f}')
+        print(f'Add Missing Records Time: {end - start:.1f}')
         start = end
 
         # Create a voting record for each voter with a column for
         # each election
         df = self.pivot(df, df_first_last, self.get_date_added())
         end = time.perf_counter()
-        print(f'Pivot Time: {end-start:.1f}')
+        print(f'Pivot Time: {end - start:.1f}')
         start = end
 
         # add county info
         df = self.add_county(df, df_county)
         end = time.perf_counter()
-        print(f'Add County Time: {end-start:.1f}')
+        print(f'Add County Time: {end - start:.1f}')
 
         return df
 
@@ -259,7 +259,7 @@ class VoterSegmentation(Pathes):
         start = time.perf_counter()
         df = self.history()
         end = time.perf_counter()
-        print(f'Total Gather History Time: {end-start:.1f}')
+        print(f'Total Gather History Time: {end - start:.1f}')
         start = end
 
         # Get cursor
@@ -269,7 +269,7 @@ class VoterSegmentation(Pathes):
         drop_table_stmt = 'drop table if exists voter_history_summary'
         cur.execute(drop_table_stmt)
         end = time.perf_counter()
-        print(f'Drop Table Time: {end-start:.1f}')
+        print(f'Drop Table Time: {end - start:.1f}')
         start = end
 
         # Construct table create statement -- election dates are unknown and then
@@ -287,7 +287,7 @@ class VoterSegmentation(Pathes):
         cur.execute(create_table_stmt)
         self.db.con.commit()
         end = time.perf_counter()
-        print(f'Create Table Time: {end-start:.1f}')
+        print(f'Create Table Time: {end - start:.1f}')
         start = end
 
         # Construct insert statement then insert records
@@ -298,7 +298,7 @@ class VoterSegmentation(Pathes):
         df.apply(lambda row: cur.execute(insert_stmt, [row[i] for i in range(0, column_count)]), axis=1)
         self.db.con.commit()
         end = time.perf_counter()
-        print(f'Insert History Time: {end-start:.1f}')
+        print(f'Insert History Time: {end - start:.1f}')
         start = end
 
         # Add a county code index
@@ -306,77 +306,72 @@ class VoterSegmentation(Pathes):
         cur.execute(create_index_stmt)
         self.db.con.commit()
         end = time.perf_counter()
-        print(f'Create Index Time: {end-start:.1f}')
+        print(f'Create Index Time: {end - start:.1f}')
 
     @staticmethod
-    def compute_ops(vhs, end=None):
-        if end is None:
-            end = len(vhs.columns)
-        return vhs.assign(ops=vhs.apply(lambda row: [p for p in row[2:end] if pd.notna(p)], axis=1))
+    def compute_ops(vhs):
+        return vhs.assign(ops=vhs.apply(lambda row: [p for p in row[2:] if pd.notna(p)], axis=1))
 
-    def score_voters(self, end=None):
+    def score_voters(self, df):
         start = time.perf_counter()
-        vhs = self.voter_history_summary()
-        if end is None:
-            end = len(vhs.columns)
         end_time = time.perf_counter()
         print(f'Load Voter History Summary Time: {end_time - start:.1f}')
         start = end_time
-        vhs = self.compute_ops(vhs, end)
+        df = self.compute_ops(df)
         end_time = time.perf_counter()
         print(f'Compute Ops Time: {end_time - start:.1f}')
         start = end_time
-        vhs = vhs.assign(max_ballots_cast=vhs.ops.apply(lambda x: len(x)))
+        df = df.assign(max_ballots_cast=df.ops.apply(lambda x: len(x)))
         end_time = time.perf_counter()
         print(f'Compute max_ballots_cast Time: {end_time - start:.1f}')
         start = end_time
-        vhs = vhs.assign(ballots_cast=vhs.ops.apply(lambda ops: sum([not x.startswith('X') for x in ops])))
+        df = df.assign(ballots_cast=df.ops.apply(lambda ops: sum([not x.startswith('X') for x in ops])))
         end_time = time.perf_counter()
         print(f'Compute ballots_cast Time: {end_time - start:.1f}')
         start = end_time
-        vhs = vhs.assign(gn_max=vhs.ops.apply(lambda ops: sum([x.endswith('G') for x in ops])))
+        df = df.assign(gn_max=df.ops.apply(lambda ops: sum([x.endswith('G') for x in ops])))
         end_time = time.perf_counter()
         print(f'Compute gn_max Time: {end_time - start:.1f}')
         start = end_time
-        vhs = vhs.assign(pn_max=vhs.ops.apply(lambda ops: sum([x.endswith('P') for x in ops])))
+        df = df.assign(pn_max=df.ops.apply(lambda ops: sum([x.endswith('P') for x in ops])))
         end_time = time.perf_counter()
         print(f'Compute pn_max Time: {end_time - start:.1f}')
         start = end_time
-        vhs = vhs.assign(gn=vhs.ops.apply(lambda ops: sum([x == 'GG' for x in ops])))
+        df = df.assign(gn=df.ops.apply(lambda ops: sum([x == 'GG' for x in ops])))
         end_time = time.perf_counter()
         print(f'Compute gn Time: {end_time - start:.1f}')
         start = end_time
-        vhs = vhs.assign(rn=vhs.ops.apply(lambda ops: sum([x == 'RP' for x in ops])))
+        df = df.assign(rn=df.ops.apply(lambda ops: sum([x == 'RP' for x in ops])))
         end_time = time.perf_counter()
         print(f'Compute rn Time: {end_time - start:.1f}')
         start = end_time
-        vhs = vhs.assign(dn=vhs.ops.apply(lambda ops: sum([x == 'DP' for x in ops])))
+        df = df.assign(dn=df.ops.apply(lambda ops: sum([x == 'DP' for x in ops])))
         end_time = time.perf_counter()
         print(f'Compute dn Time: {end_time - start:.1f}')
         start = end_time
-        vhs = vhs.assign(gr=(vhs.gn / vhs.gn_max).fillna(0))
+        df = df.assign(gr=(df.gn / df.gn_max).fillna(0))
         end_time = time.perf_counter()
         print(f'Compute gr Time: {end_time - start:.1f}')
         start = end_time
-        vhs = vhs.assign(pr=((vhs.rn + vhs.dn) / vhs.pn_max).fillna(0))
+        df = df.assign(pr=((df.rn + df.dn) / df.pn_max).fillna(0))
         end_time = time.perf_counter()
         print(f'Compute pr Time: {end_time - start:.1f}')
         start = end_time
-        vhs = vhs.assign(ra=((vhs.rn / vhs.pn_max) - (vhs.dn / vhs.pn_max) + 1) / 2)
+        df = df.assign(ra=((df.rn / df.pn_max) - (df.dn / df.pn_max) + 1) / 2)
         end_time = time.perf_counter()
         print(f'Compute ra Time: {end_time - start:.1f}')
         start = end_time
-        vhs = vhs[['voter_id', 'county_code', 'max_ballots_cast', 'ballots_cast',
-                   'gn_max', 'pn_max', 'gn', 'rn', 'dn', 'gr', 'pr', 'ra']]
+        df = df[['voter_id', 'county_code', 'max_ballots_cast', 'ballots_cast',
+                 'gn_max', 'pn_max', 'gn', 'rn', 'dn', 'gr', 'pr', 'ra']]
         end_time = time.perf_counter()
         print(f'Reorder Time: {end_time - start:.1f}')
-        return vhs
+        return df
 
-    def rebuild_voter_score(self, end=None):
+    def rebuild_voter_score(self):
         start = time.perf_counter()
-        score = self.score_voters(end)
+        score = self.score_voters(self.voter_history_summary())
         end = time.perf_counter()
-        print(f'Score Voter Time: {end-start:.1f}')
+        print(f'Score Voter Time: {end - start:.1f}')
         # Get cursor
         cur = self.db.con.cursor()
 
@@ -414,7 +409,7 @@ class VoterSegmentation(Pathes):
         score.apply(lambda row: cur.execute(insert_stmt, [row[i] for i in range(0, 12)]), axis=1)
         self.db.con.commit()
         end = time.perf_counter()
-        print(f'Insert Score Time: {end-start:.1f}')
+        print(f'Insert Score Time: {end - start:.1f}')
         start = end
 
         # Add a county code index
@@ -422,7 +417,7 @@ class VoterSegmentation(Pathes):
         cur.execute(create_index_stmt)
         self.db.con.commit()
         end = time.perf_counter()
-        print(f'Create Index Time: {end-start:.1f}')
+        print(f'Create Index Time: {end - start:.1f}')
 
     def voter_history_summary(self, limit=None):
         return self.db.get_voter_history_summary(limit=limit)
