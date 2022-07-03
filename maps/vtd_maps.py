@@ -17,8 +17,6 @@ class VtdMaps(MapBase):
     def to_geodataframe(self, df):
         data = {'id': df.id,
                 'area': df.area,
-                'district': df.district,
-                'county_sosid': df.county_sosid,
                 'precinct_id': df.precinct_id,
                 'precinct_name': df.precinct_name,
                 'county_code': df.county_code,
@@ -27,7 +25,7 @@ class VtdMaps(MapBase):
                 'geometry': self.from_wkb(df.geometry_wkb),
                 'center': self.from_wkb(df.center_wkb)
                 }
-        return GeoDataFrame(data, self.crs_lat_lon)
+        return GeoDataFrame(data, crs=self.crs_lat_lon)
 
     def get_map(self, county_code):
         return self.to_geodataframe(self.db.get_vtd_map(county_code))

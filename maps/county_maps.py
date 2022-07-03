@@ -1,12 +1,10 @@
-from data.pathes import Pathes
-from data.voterdb import VoterDb
-from geopandas import GeoSeries, GeoDataFrame
+from geopandas import GeoDataFrame
+from maps.map_base import MapBase
 
 
-class CountyMaps(Pathes):
+class CountyMaps(MapBase):
     def __init__(self, root_dir, state='ga'):
         super().__init__(root_dir, state)
-        self.db = VoterDb(root_dir, state)
 
     @property
     def maps_(self):
@@ -14,6 +12,9 @@ class CountyMaps(Pathes):
 
     @property
     def maps(self):
+        return self.to_geodataframe_(self.maps_)
+
+    def to_geodataframe_(self, df):
         m = self.maps_
         data = {'state_fips':  m.state_fips,
                 'county_fips':  m.county_fips,
@@ -22,10 +23,14 @@ class CountyMaps(Pathes):
                 'county_name':  m.county_name,
                 'aland':  m.aland,
                 'awater':  m.awater,
-                'geometry': GeoSeries.from_wkb(m.geometry_wkb, crs='epsg:3035').to_crs(crs='epsg:4326'),
-                'center': GeoSeries.from_wkb(m.center_wkb, crs='epsg:3035').to_crs(crs='epsg:4326')}
-        return GeoDataFrame(data, crs='epsg:4326')
+                'geometry': self.from_wkb(df.geometry_wkb),
+                'center': self.from_wkb(df.center_wkb)
+                }
+        return GeoDataFrame(data, crs=self.crs_lat_lon)
 
     def get_map(self, county_code):
-        m = self.maps
-        return m[m.county_code == county_code].reset_index()
+        return self.to_geodataframe_(self.db.get_county_map(county_code))
+
+    @staticmethod
+    def get_county_map(county_code, root_dir='~/Documents/data'):
+        return CountyMaps(root_dir).get_map(county_code)

@@ -16,7 +16,9 @@ class DistrictMapBase(MapBase):
 
     @property
     def maps(self):
-        m = self.maps_
+        return self.to_geodataframe_(self.maps_)
+
+    def to_geodataframe_(self, m):
         data = {'id': m.id, 'area': m.area,
                 'district': m.district,
                 'population': m.population,
@@ -54,7 +56,7 @@ class DistrictMapBase(MapBase):
         return pd.read_sql_query(q, self.db.con)
 
     def get_precincts(self, district):
-        q = self.get_voter_query(district)
+        q = self.get_voter_query(f'{int(district):03d}')
         return pd.read_sql_query(f"""
             select * from precinct_details where id in (
                 select precinct_id from voter_precinct where voter_id in (
@@ -76,8 +78,6 @@ class DistrictMapBase(MapBase):
         """, self.db.con)
         data = {'id': df.id,
                 'area': df.area,
-                'district': df.district,
-                'county_sosid': df.county_sosid,
                 'precinct_id': df.precinct_id,
                 'precinct_name': df.precinct_name,
                 'county_code': df.county_code,
@@ -100,6 +100,10 @@ class CngDistrictMap(DistrictMapBase):
     def maps_(self):
         return self.cng_maps_
 
+    @classmethod
+    def get_district_map(cls, district, root_dir='~/Documents/data'):
+        return CngDistrictMap(root_dir).get_map(district)
+
     def get_voter_query(self, district):
         return f"""
             select voter_id from voter_cng where cng='{district}'
@@ -109,18 +113,37 @@ class CngDistrictMap(DistrictMapBase):
 class HseDistrictMap(DistrictMapBase):
     def __init__(self, root_dir, state='ga'):
         super().__init__(root_dir, state)
-        self.hse_maps_ = self.db.cng_maps
+        self.hse_maps_ = self.db.hse_maps
 
     @property
     def maps_(self):
         return self.hse_maps_
 
+    @classmethod
+    def get_district_map(cls, district, root_dir='~/Documents/data'):
+        return HseDistrictMap(root_dir).get_map(district)
+
+    def get_voter_query(self, district):
+        return f"""
+            select voter_id from voter_hse where hse='{int(district):03d}'
+            """
+
 
 class SenDistrictMap(DistrictMapBase):
     def __init__(self, root_dir, state='ga'):
         super().__init__(root_dir, state)
-        self.sen_maps_ = self.db.cng_maps
+        self.sen_maps_ = self.db.sen_maps
 
     @property
     def maps_(self):
         return self.sen_maps_
+
+    @classmethod
+    def get_district_map(cls, district, root_dir='~/Documents/data'):
+        return SenDistrictMap(root_dir).get_map(district)
+
+    def get_voter_query(self, district):
+        return f"""
+            select voter_id from voter_sen where sen='{int(district):03d}'
+            """
+
