@@ -1,17 +1,20 @@
 import unittest
-from pathlib import Path
-import pandas as pd
 from data.voterdb import VoterDb
-import time
 from random import randint
-from data.voter_list_ingest import IngestVoterList
+from ingest.voter_list_ingest import IngestVoterList
 from segmentation.utils import categorize_age
+
+import django
+import os
+
+os.environ['DJANGO_SETTINGS_MODULE'] = 'dashboard.settings'
+django.setup()
 
 
 class TestVoterDbContent(unittest.TestCase):
     def setUp(self):
         self.root_dir = '~/Documents/data'
-        self.sut = VoterDb(self.root_dir)
+        self.sut = VoterDb()
         self.county_code = f'{randint(1, 150):03d}'
         ivl = IngestVoterList(self.root_dir)
         self.df = ivl.read_csv(self.county_code)

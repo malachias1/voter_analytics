@@ -1,11 +1,8 @@
 import unittest
 from pathlib import Path
-import numpy as np
-import pandas as pd
 from segmentation.precinct_segmentation import PrecinctSegmentation
-from data.voter_list_ingest import IngestVoterList
+from ingest.voter_list_ingest import IngestVoterList
 from data.voterdb import VoterDb
-from datetime import datetime
 
 
 class TestPrecinctSegmentation(unittest.TestCase):

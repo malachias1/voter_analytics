@@ -1,6 +1,6 @@
 import unittest
 from data.voterdb import VoterDb
-from data.maps_ingest import IngestUSHouseMaps, IngestGAHouseMaps, IngestGASenateMaps
+from ingest.maps_ingest import IngestUSHouseMaps, IngestGAHouseMaps, IngestGASenateMaps
 from maps.district_maps import CngDistrictMap, HseDistrictMap, SenDistrictMap
 
 

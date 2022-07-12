@@ -1,12 +1,11 @@
 import json
 
 from data.voterdb import VoterDb
-from data.voter_list_ingest import IngestVoterList
+from ingest.voter_list_ingest import IngestVoterList
 from util.addresses import StreetNameNormalizer
 from util.names import NameNormalizer
 import pandas as pd
 from pathlib import Path
-import numpy as np
 import sys
 
 
