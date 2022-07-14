@@ -411,19 +411,19 @@ class ResidenceAddress(models.Model):
         db_table = 'residence_address'
 
 
-class SenMap(models.Model):
-    id = models.IntegerField(primary_key=True)
-    area = models.FloatField()
-    district = models.TextField()
-    population = models.IntegerField()
-    ideal_value = models.FloatField()
-    geometry_wkb = models.TextField()
-    center_wkb = models.TextField()
-
-    class Meta:
-        managed = False
-        db_table = 'sen_map'
-
+# class SenMap(models.Model):
+#     id = models.IntegerField(primary_key=True)
+#     area = models.FloatField()
+#     district = models.TextField()
+#     population = models.IntegerField()
+#     ideal_value = models.FloatField()
+#     geometry_wkb = models.TextField()
+#     center_wkb = models.TextField()
+#
+#     class Meta:
+#         managed = False
+#         db_table = 'sen_map'
+#
 
 class VoterCng(models.Model):
     voter_id = models.TextField(primary_key=True)

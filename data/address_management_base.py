@@ -1,9 +1,5 @@
-from psycopg2.extras import execute_values
 import pandas as pd
 from data.voterdb import VoterDb
-from data.voter_list import VoterList
-import re
-import numpy as np
 
 
 class AddressManagementBase(VoterDb):

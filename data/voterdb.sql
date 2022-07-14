@@ -292,3 +292,16 @@ CREATE TABLE IF NOT EXISTS precinct_summary
     AP_M_M      integer not null,
     AP_M_GZ     integer not null
 );
+
+create table cng_map
+(
+    id          integer primary key,
+    area         REAL,
+    district     TEXT,
+    population   INTEGER,
+    ideal_value  REAL,
+    geometry_wkb TEXT,
+    center_wkb   TEXT
+);
+
+CREATE INDEX IF NOT EXISTS cng_map_idx ON cng_map (district);

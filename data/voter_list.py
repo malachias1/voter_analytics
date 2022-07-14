@@ -1,12 +1,10 @@
-import re
 import pandas as pd
 from data.pathes import Pathes
 from util.addresses import StreetNameNormalizer
+from data.utils import zip_plus4
 
 
 class VoterList(Pathes):
-    ZIPCODE = re.compile(r'(\d\d\d\d\d)-?(\d\d\d\d)?')
-
     def __init__(self, root_dir, state='ga'):
         super().__init__(root_dir, state)
 
@@ -42,13 +40,13 @@ class VoterList(Pathes):
                       'address_line3',
                       'country'
                       ]
-        zip_plus4 = pd.DataFrame.from_records(df['zipcode'].apply(cls.zip_plus4))
+        z4 = pd.DataFrame.from_records(df['zipcode'].apply(zip_plus4))
         # Columns need to be in a particular order. Zip code is
         # in the right place, but I need to insert plus4 after
         # zip code.
-        df = df.assign(zipcode=zip_plus4[0])
+        df = df.assign(zipcode=z4[0])
         idx = df.columns.get_loc('zipcode')
-        df.insert(idx + 1, 'plus4', zip_plus4[1])
+        df.insert(idx + 1, 'plus4', z4[1])
 
         return df
 
@@ -68,10 +66,10 @@ class VoterList(Pathes):
                       'city',
                       'zipcode',
                       ]
-        zip_plus4 = pd.DataFrame.from_records(df['zipcode'].apply(cls.zip_plus4))
+        z4 = pd.DataFrame.from_records(df['zipcode'].apply(zip_plus4))
         idx = df.columns.get_loc('zipcode')
         df.insert(idx, 'state', 'GA')
-        return df.assign(zipcode=zip_plus4[0], plus4=zip_plus4[1], lat=None, lon=None)
+        return df.assign(zipcode=z4[0], plus4=z4[1], lat=None, lon=None)
 
     def read_csv(self, county_code, edition='latest'):
         sn = StreetNameNormalizer()
@@ -80,12 +78,3 @@ class VoterList(Pathes):
         df = df.assign(residence_street_name=df.residence_street_name.apply(sn.normalize),
                        mail_street_name=df.mail_street_name.apply(sn.normalize))
         return df
-
-    @classmethod
-    def zip_plus4(cls, zipcode):
-        if zipcode == '':
-            return '', ''
-        m = cls.ZIPCODE.match(zipcode)
-        if m is None:
-            return '', ''
-        return m.group(1), m.group(2) if m.group(2) is not None else ''

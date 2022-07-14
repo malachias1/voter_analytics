@@ -1,9 +1,14 @@
-from django.test import TestCase
-from .models import CngMap
+import unittest
+import django
+import os
+
+os.environ['DJANGO_SETTINGS_MODULE'] = 'dashboard.settings'
+django.setup()
+
+from cng_map.models import CngMap
 
 
-class CngMapTestCase(TestCase):
-    def test_maps(self):
-        self.assertIsNotNone(CngMap.objects.all())
-        self.assertTrue(len(CngMap.objects.all()) > 0)
-        print(CngMap.objects.all().values_list())
+class CngMapTestCase(unittest.TestCase):
+    def test_get_map(self):
+        m = CngMap.get_map(7)
+        print(m.shape)

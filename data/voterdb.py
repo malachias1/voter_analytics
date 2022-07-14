@@ -45,18 +45,6 @@ class VoterDb:
         return pd.DataFrame.from_records(results, columns=['id', 'election_date', 'contest'])
 
     @property
-    def cng_maps(self):
-        cur = self.cursor()
-        cur.execute(f"""
-            select id, area, district, population, ideal_value, geometry_wkb, center_wkb 
-                from cng_map
-        """)
-        results = cur.fetchall()
-        return pd.DataFrame.from_records(results, columns=['id', 'area', 'district',
-                                                           'population', 'ideal_value',
-                                                           'geometry_wkb', 'center_wkb'])
-
-    @property
     def county_details(self):
         return pd.read_sql_query(f"select * from county_details", self.con)
 
@@ -145,10 +133,6 @@ class VoterDb:
                                                            'AI_M_GZ', 'AP_F_S', 'AP_F_B', 'AP_F_GX', 'AP_F_M',
                                                            'AP_F_GZ', 'AP_M_S', 'AP_M_B', 'AP_M_GX', 'AP_M_M',
                                                            'AP_M_GZ'])
-
-    @property
-    def sen_maps(self):
-        return pd.read_sql_query(f"select * from sen_map", self.con)
 
     @property
     def voter_cng(self):
@@ -241,94 +225,6 @@ class VoterDb:
             where county_code='{county_code}'
         """, self.con).drop(columns='precinct_id').rename(columns={'x': 'precinct_id'})
         return ps
-
-    def get_voter_cng(self, voter_id):
-        df = pd.read_sql_query(f"select * from voter_cng where voter_id={voter_id}", self.con)
-        if len(df) > 0:
-            return df.cng.iloc[0]
-        return None
-
-    def get_voter_hse(self, voter_id):
-        df = pd.read_sql_query(f"select * from voter_hse where voter_id={voter_id}", self.con)
-        if len(df) > 0:
-            return df.cng.iloc[0]
-        return None
-
-    def get_voter_sen(self, voter_id):
-        df = pd.read_sql_query(f"select * from voter_sen where voter_id={voter_id}", self.con)
-        if len(df) > 0:
-            return df.cng.iloc[0]
-        return None
-
-    def get_voter_precinct_details_for_county(self, county_code):
-        cur = self.cursor()
-        cur.execute(f"""
-            select a.voter_id as voter_id,
-                       b.id as precinct_id,
-                       b.county_code as precinct_detail_county_code,
-                       b.precinct_id as precinct_detail_id,
-                       b.precinct_name as precinct_detail_name
-                from voter_precinct as a
-                join precinct_details as b 
-                on a.precinct_id = b.id
-                where b.county_code = '{county_code}'
-        """)
-        results = cur.fetchall()
-        return pd.DataFrame.from_records(results, columns=['voter_id', 'precinct_id',
-                                                           'precinct_detail_county_code',
-                                                           'precinct_detail_id', 'precinct_detail_name'])
-
-    def get_voter_precinct_id(self, voter_id):
-        df = pd.read_sql_query(f"select * from voter_precinct where voter_id={voter_id}", self.con)
-        if len(df) > 0:
-            return df.cng.iloc[0]
-        return None
-
-    def get_voter_by_name(self, first_name, last_name):
-        params = (first_name, last_name)
-        return pd.read_sql_query(f"select * from voter_name where ?=first_name and ?=last_name",
-                                 self.con, params=params)
-
-    def get_voter_by_middle_name(self, middle_name, last_name):
-        params = (middle_name, last_name)
-        return pd.read_sql_query(f"select * from voter_name where ?=middle_name and ?=last_name",
-                                 self.con, params=params)
-
-    def get_voter_by_last_name(self, last_name):
-        params = (last_name,)
-        return pd.read_sql_query(f"select * from voter_name where ?=last_name",
-                                 self.con, params=params)
-
-    def get_voter_demographics_for_voter(self, voter_id):
-        df = pd.read_sql_query(f"select * from voter_demographics where voter_id='{voter_id}'", self.con)
-        if len(df) > 0:
-            return df.iloc[0]
-        return None
-
-    def get_voter_name_details(self, voter_id):
-        cur = self.cursor()
-        cur.execute(f"""
-            select voter_id, last_name, first_name, middle_name, name_suffix, name_title 
-                from voter_name 
-                where voter_id='{voter_id}'
-        """)
-        result = cur.fetchone()
-        if result is not None:
-            return pd.DataFrame.from_records([result], columns=['voter_id', 'last_name', 'first_name',
-                                                                'middle_name', 'name_suffix', 'name_title'])
-        return None
-
-    def get_voter_demographics_details(self, voter_id):
-        cur = self.cursor()
-        cur.execute(f"""
-            select voter_id, race_id, gender, year_of_birth 
-                from voter_demographics 
-                where voter_id='{voter_id}'
-        """)
-        result = cur.fetchone()
-        if result is not None:
-            return pd.DataFrame.from_records([result], columns=['voter_id', 'race_id', 'gender', 'year_of_birth'])
-        return None
 
     def get_vtd_map(self, county_code):
         return pd.read_sql_query(f"select * from vtd_map where county_code='{county_code}'", self.con)

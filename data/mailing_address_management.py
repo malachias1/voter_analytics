@@ -78,6 +78,13 @@ class MailingAddressManagement(AddressManagementBase):
         """)
         return self.from_records(results)
 
+    def get_voter_address(self, voter_id):
+        result = self.fetchone(f"""
+            select address_id from mailing_address_voter where voter_id = '{voter_id}'
+        """)
+        address_id = result[0]
+        return self.get_address(address_id)
+
     # -------------------------------------------------------------------------
     # Ingest and Update Methods
     # -------------------------------------------------------------------------

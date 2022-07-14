@@ -8,7 +8,7 @@ import geopandas as gpd
 class IngestMapsBase(Pathes):
     def __init__(self, root_dir, state='ga'):
         super().__init__(root_dir, state)
-        self.db = VoterDb(root_dir, state)
+        self.db = VoterDb()
 
     @property
     def filename(self):

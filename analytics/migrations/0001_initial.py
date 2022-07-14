@@ -19,6 +19,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'address_voter',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -33,6 +34,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'block_group_geometry',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -64,6 +66,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'children',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -79,6 +82,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'cng_map',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -97,6 +101,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'contest_class',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -108,6 +113,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'county_details',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -125,6 +131,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'county_map',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -158,6 +165,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'educational_attainment',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -176,6 +184,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'election_result_details',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -193,6 +202,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'election_results',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -208,6 +218,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'election_results_over_under',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -223,6 +234,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'hse_map',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -242,6 +254,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'mailing_address',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -252,6 +265,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'mailing_address_voter',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -267,6 +281,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'median_house_hold_income',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -279,6 +294,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'precinct_details',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -371,6 +387,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'precinct_summary',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -390,6 +407,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'residence_address',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -415,6 +433,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'voter_cng',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -427,6 +446,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'voter_demographics',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -443,6 +463,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'voter_history',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -462,6 +483,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'voter_history_summary',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -472,6 +494,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'voter_hse',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -486,6 +509,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'voter_name',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -496,6 +520,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'voter_precinct',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -516,6 +541,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'voter_score',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -531,6 +557,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'voter_search',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -541,6 +568,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'voter_sen',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -556,6 +584,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'voter_status',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -573,6 +602,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'vtd_map',
+                'managed': False,
             },
         ),
         migrations.CreateModel(
@@ -606,6 +636,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'work_travel_time',
+                'managed': False,
             },
         ),
     ]
