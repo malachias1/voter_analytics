@@ -28,14 +28,13 @@ class VoterDb:
         is a lazy initialization.
         :param conn_name: the name of the connection to use in settings.
         """
-        con = connections['default']
+        con = connections[conn_name]
         try:
             c = con.cursor()
             del c
             self.con = con.connection
         except OperationalError as e:
             raise RuntimeError(f'Unable to connect to db: {str(e)}')
-
 
     @property
     def contests(self):
@@ -106,13 +105,18 @@ class VoterDb:
         # Because I have mixed case or upper case column names
         # I need to quote the column names.
         cur.execute(f"""
-            select precinct_id, total, "AP", "AI", "HP", "BH", "OT", "U", "WH", "S", "B", "GX", "M", "GZ", "WH_F_S", "WH_F_B",
+            select precinct_id, total, "AP", "AI", "HP", "BH", "OT", "U", "WH", "S", "B", "GX", "M", "GZ", "WH_F_S", 
+            "WH_F_B",
                     "WH_F_GX", "WH_F_M", "WH_F_GZ", "WH_M_S", "WH_M_B", "WH_M_GX", "WH_M_M", "WH_M_GZ", "BH_F_S",
                     "BH_F_B", "BH_F_GX", "BH_F_M", "BH_F_GZ", "BH_M_S", "BH_M_B", "BH_M_GX", "BH_M_M", "BH_M_GZ",
-                    "U_F_S", "U_F_B", "U_F_GX", "U_F_M", "U_F_GZ", "U_M_S", "U_M_B", "U_M_GX", "U_M_M", "U_M_GZ", "OT_F_S",
-                    "OT_F_B", "OT_F_GX", "OT_F_M", "OT_F_GZ", "OT_M_S", "OT_M_B", "OT_M_GX", "OT_M_M", "OT_M_GZ", "HP_F_S",
-                    "HP_F_B", "HP_F_GX", "HP_F_M", "HP_F_GZ", "HP_M_S", "HP_M_B", "HP_M_GX", "HP_M_M", "HP_M_GZ", "AI_F_S",
-                    "AI_F_B", "AI_F_GX", "AI_F_M", "AI_F_GZ", "AI_M_S", "AI_M_B", "AI_M_GX", "AI_M_M", "AI_M_GZ", "AP_F_S",
+                    "U_F_S", "U_F_B", "U_F_GX", "U_F_M", "U_F_GZ", "U_M_S", "U_M_B", "U_M_GX", "U_M_M", "U_M_GZ", 
+                    "OT_F_S",
+                    "OT_F_B", "OT_F_GX", "OT_F_M", "OT_F_GZ", "OT_M_S", "OT_M_B", "OT_M_GX", "OT_M_M", "OT_M_GZ", 
+                    "HP_F_S",
+                    "HP_F_B", "HP_F_GX", "HP_F_M", "HP_F_GZ", "HP_M_S", "HP_M_B", "HP_M_GX", "HP_M_M", "HP_M_GZ", 
+                    "AI_F_S",
+                    "AI_F_B", "AI_F_GX", "AI_F_M", "AI_F_GZ", "AI_M_S", "AI_M_B", "AI_M_GX", "AI_M_M", "AI_M_GZ", 
+                    "AP_F_S",
                     "AP_F_B", "AP_F_GX", "AP_F_M", "AP_F_GZ", "AP_M_S", "AP_M_B", "AP_M_GX", "AP_M_M", "AP_M_GZ" 
                 from precinct_summary
         """)
@@ -228,24 +232,6 @@ class VoterDb:
 
     def get_vtd_map(self, county_code):
         return pd.read_sql_query(f"select * from vtd_map where county_code='{county_code}'", self.con)
-
-    def rebuild_search_table(self):
-        cur = self.con.cursor()
-        cur.execute('delete from voter_search;')
-        self.con.commit()
-        df1 = pd.read_sql_query(f"select * from address_voter", self.con)
-        df2 = pd.read_sql_query(f"select voter_id, last_name, first_name, middle_name from voter_name", self.con)
-        df3 = pd.read_sql_query(f"select address_id, house_number, zipcode from residence_address", self.con)
-        df = df1.merge(df2, how='inner', on=['voter_id'])
-        df = df.merge(df3, how='inner', on=['address_id'])
-        # note the order of address_id and voter_id
-        stmt = f"""
-        replace into voter_search 
-            (address_id, voter_id, last_name, first_name, middle_name, house_number, zipcode) 
-        values (?,?,?,?,?,?,?)"""
-        cur = self.con.cursor()
-        df.apply(lambda row: cur.execute(stmt, (row[0], row[1], row[2], row[3], row[4], row[5], row[6])), axis=1)
-        self.con.commit()
 
     def voter_history_for_date(self, year, month, day):
         date = f'{year}{month:02d}{day:02d}'
