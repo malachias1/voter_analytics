@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'core',
     'analytics',
     'cng_map',
+    'hse_map',
     'sen_map',
     'county_map',
     'blockgroup_map',
