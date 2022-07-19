@@ -58,20 +58,6 @@ class Children(models.Model):
         managed = False
         db_table = 'children'
 
-# class CngMap(models.Model):
-#     id = models.IntegerField(primary_key=True)
-#     area = models.FloatField()
-#     district = models.TextField()
-#     population = models.IntegerField()
-#     ideal_value = models.FloatField()
-#     geometry_wkb = models.TextField()
-#     center_wkb = models.TextField()
-#
-#     class Meta:
-#         managed = False
-#         db_table = 'cng_map'
-
-
 class ContestClass(models.Model):
     id = models.IntegerField(primary_key=True)
     election_date = models.TextField()
@@ -97,22 +83,6 @@ class CountyDetails(models.Model):
     class Meta:
         managed = False
         db_table = 'county_details'
-
-
-class CountyMap(models.Model):
-    state_fips = models.TextField()
-    county_fips = models.TextField()
-    county_code = models.TextField(primary_key=True)
-    geoid = models.TextField()
-    county_name = models.TextField()
-    aland = models.TextField()
-    awater = models.TextField()
-    geometry_wkb = models.TextField()
-    center_wkb = models.TextField()
-
-    class Meta:
-        managed = False
-        db_table = 'county_map'
 
 
 # class EducationalAttainment(models.Model):
@@ -563,22 +533,6 @@ class VoterStatus(models.Model):
     class Meta:
         managed = False
         db_table = 'voter_status'
-
-
-class VtdMap(models.Model):
-    id = models.IntegerField(primary_key=True)
-    area = models.FloatField()
-    precinct_id = models.TextField()
-    precinct_name = models.TextField()
-    county_code = models.TextField()
-    county_fips = models.TextField()
-    county_name = models.TextField()
-    geometry_wkb = models.TextField()
-    center_wkb = models.TextField()
-
-    class Meta:
-        managed = False
-        db_table = 'vtd_map'
 
 
 class WorkTravelTime(models.Model):
