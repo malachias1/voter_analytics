@@ -41,7 +41,9 @@ INSTALLED_APPS = [
     'analytics',
     'cng_map',
     'sen_map',
-
+    'county_map',
+    'blockgroup_map',
+    'vtd_map',
 ]
 
 MIDDLEWARE = [
