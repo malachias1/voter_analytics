@@ -136,7 +136,8 @@ class VoterDetails(VoterDb):
 
     def ingest_cng(self, df):
         df = df[['voter_id', 'cng']]
-        self.delete_voters_from_table(df.voter_id, 'voter_cng')
+        df = df.assign(cng=df.cng.apply(lambda x: f'{int(x):03d}'))
+        self.delete_voters_from_table(df, 'voter_cng')
         with self.con:
             with self.cursor() as cur:
                 execute_values(cur, f"""
@@ -146,7 +147,8 @@ class VoterDetails(VoterDb):
 
     def ingest_hse(self, df):
         df = df[['voter_id', 'hse']]
-        self.delete_voters_from_table(df.voter_id, 'voter_hse')
+        df = df.assign(hse=df.hse.apply(lambda x: f'{int(x):03d}'))
+        self.delete_voters_from_table(df, 'voter_hse')
         with self.con:
             with self.cursor() as cur:
                 execute_values(cur, f"""
@@ -156,7 +158,8 @@ class VoterDetails(VoterDb):
 
     def ingest_sen(self, df):
         df = df[['voter_id', 'sen']]
-        self.delete_voters_from_table(df.voter_id, 'voter_sen')
+        df = df.assign(sen=df.sen.apply(lambda x: f'{int(x):03d}'))
+        self.delete_voters_from_table(df, 'voter_sen')
         with self.con:
             with self.cursor() as cur:
                 execute_values(cur, f"""
