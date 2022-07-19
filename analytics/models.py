@@ -206,20 +206,6 @@ class ElectionResultsOverUnder(models.Model):
         db_table = 'election_results_over_under'
 
 
-class HseMap(models.Model):
-    id = models.IntegerField(primary_key=True)
-    area = models.FloatField()
-    district = models.TextField()
-    population = models.IntegerField()
-    ideal_value = models.FloatField()
-    geometry_wkb = models.TextField()
-    center_wkb = models.TextField()
-
-    class Meta:
-        managed = False
-        db_table = 'hse_map'
-
-
 class MailingAddress(models.Model):
     address_id = models.IntegerField(primary_key=True)
     house_number = models.TextField()
