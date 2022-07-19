@@ -247,14 +247,6 @@ class VoterDb:
         df.apply(lambda row: cur.execute(stmt, (row[0], row[1], row[2], row[3], row[4], row[5], row[6])), axis=1)
         self.con.commit()
 
-    def voter_search(self, first_name, last_name, house_number, zipcode):
-        df = pd.read_sql_query(f"""
-            select 
-                address_id, voter_id, last_name, first_name, middle_name, house_number, zipcode 
-            from voter_search where last_name=? and house_number=? and zipcode=?""",
-                               self.con, params=(last_name, house_number, zipcode))
-        return pd.concat([df[df.first_name == first_name], df[df.middle_name == first_name]], ignore_index=True)
-
     def voter_history_for_date(self, year, month, day):
         date = f'{year}{month:02d}{day:02d}'
         return pd.read_sql_query(f"select * from voter_history where date='{date}'", self.con)

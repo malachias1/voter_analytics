@@ -305,3 +305,17 @@ create table cng_map
 );
 
 CREATE INDEX IF NOT EXISTS cng_map_idx ON cng_map (district);
+
+
+create table blockgroup_map
+(
+    geoid       text not null primary key,
+    state_fips  text not null,
+    county_fips text not null,
+    tract       text not null,
+    blockgroup  text not null,
+    geometry_wbk text not null,
+    center_wbk   text not null
+);
+
+CREATE INDEX IF NOT EXISTS blockgroup_map_county_idx ON blockgroup_map (county_fips);

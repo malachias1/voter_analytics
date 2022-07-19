@@ -10,7 +10,7 @@ drop index if exists election_result_details_county_idx;
 create index if not exists election_result_details_county_idx on election_result_details (election_date, county_code);
 
 drop index if exists precinct_details_county_idx;
-create index if not exists precinct_details_county_idx on precinct_details (county_code);
+create index if not exists precinct_details_county_idx on precinct_details (county_code, precinct_id);
 
 drop index if exists voter_history_date_idx;
 create index if not exists voter_history_date_idx on voter_history (date);

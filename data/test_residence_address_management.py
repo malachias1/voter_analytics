@@ -39,7 +39,7 @@ class TestResidenceAddressManagement(unittest.TestCase):
         self.assertEqual('1234 HAPPY ST #12; EVANS GA 12345-2020', key)
 
     def test_address_count(self):
-        self.assertTrue(0 < self.sut.address_count)
+        self.assertTrue(0 < self.sut.count)
 
     def test_voter_address_count(self):
         self.assertTrue(0 < self.sut.voter_address_count)

@@ -9,7 +9,7 @@ class AddressManagementBase(VoterDb):
         self.address_voter_table = address_voter_table
 
     @property
-    def address_count(self):
+    def count(self):
         result = self.fetchone(f"select count(*) from {self.address_table}")
         return result[0]
 

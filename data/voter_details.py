@@ -11,6 +11,16 @@ class VoterDetails(VoterDb):
         self.ram = ResidenceAddressManagement()
         self.mam = MailingAddressManagement()
 
+    @property
+    def voter_names(self):
+        results = self.fetchall(f"""
+                    select voter_id, last_name, first_name, middle_name, 
+                        name_suffix, name_title
+                        from voter_name
+                """)
+        return pd.DataFrame.from_records(results, columns=['voter_id', 'last_name', 'first_name',
+                                                           'middle_name', 'name_suffix', 'name_title'])
+
     def get_cng(self, voter_id):
         result = self.fetchone(f"select cng from voter_cng where voter_id='{voter_id}'")
         return result[0]
@@ -56,23 +66,20 @@ class VoterDetails(VoterDb):
         result = self.fetchone(f"select sen from voter_sen where voter_id='{voter_id}'")
         return result[0]
 
-    def get_precinct_details_for_county(self, county_code):
+    def get_precinct_details(self, voter_id):
         cur = self.cursor()
         cur.execute(f"""
-            select a.voter_id as voter_id,
-                       b.id as precinct_id,
-                       b.county_code as precinct_detail_county_code,
-                       b.precinct_id as precinct_detail_id,
-                       b.precinct_name as precinct_detail_name
+            select b.id as id,
+                   b.county_code as county_code,
+                   b.precinct_id as name,
+                   b.precinct_name as description
                 from voter_precinct as a
                 join precinct_details as b 
                 on a.precinct_id = b.id
-                where b.county_code = '{county_code}'
+                where a.voter_id = '{voter_id}'
         """)
         results = cur.fetchall()
-        return pd.DataFrame.from_records(results, columns=['voter_id', 'precinct_id',
-                                                           'precinct_detail_county_code',
-                                                           'precinct_detail_id', 'precinct_detail_name'])
+        return pd.DataFrame.from_records(results, columns=['id', 'county_code', 'name', 'description'])
 
     def get_precinct_id(self, voter_id):
         result = self.fetchone(f"select precinct_id from voter_precinct where voter_id='{voter_id}'")
@@ -156,3 +163,27 @@ class VoterDetails(VoterDb):
                           insert into voter_sen (voter_id, sen)
                           values %s
                         """, df[['voter_id', 'sen']].to_records(index=False))
+
+    def build_search_table(self):
+        results = self.fetchall(f"""
+            select av.address_id, av.voter_id, vn.last_name, vn.first_name, vn.middle_name,
+                ra.house_number, ra.zipcode
+                from address_voter as av
+                join voter_name as vn
+                on av.voter_id = vn.voter_id
+                join residence_address ra on av.address_id = ra.address_id
+            """)
+        return pd.DataFrame.from_records(results, columns=['address_id', 'voter_id', 'last_name',
+                                                           'first_name', 'middle_name', 'house_number',
+                                                           'zipcode'])
+
+    def replace_search_table(self, df):
+        with self.con:
+            with self.cursor() as cur:
+                cur.execute('truncate from voter_search')
+                execute_values(cur, f"""
+                          insert into voter_search (address_id, voter_id, last_name, first_name, middle_name, house_number, zipcode) 
+                          values %s
+                        """, df[['address_id', 'voter_id', 'last_name',
+                                 'first_name', 'middle_name', 'house_number',
+                                 'zipcode']].to_records(index=False))
