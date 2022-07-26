@@ -58,32 +58,6 @@ class Children(models.Model):
         managed = False
         db_table = 'children'
 
-class ContestClass(models.Model):
-    id = models.IntegerField(primary_key=True)
-    election_date = models.TextField()
-    contest = models.TextField()
-    category = models.TextField()
-    canonical_name = models.TextField()
-    type = models.TextField()
-    subcategory = models.TextField(blank=True, null=True)
-    party = models.TextField(blank=True, null=True)
-    is_question = models.BooleanField()
-    ambiguous = models.BooleanField()
-
-    class Meta:
-        managed = False
-        db_table = 'contest_class'
-
-
-class CountyDetails(models.Model):
-    county_code = models.TextField(primary_key=True)
-    county_fips = models.TextField()
-    county_name = models.TextField()
-
-    class Meta:
-        managed = False
-        db_table = 'county_details'
-
 
 # class EducationalAttainment(models.Model):
 #     geoid = models.TextField(db_column='GEOID', primary_key=True)  # Field name made lowercase.
@@ -157,53 +131,6 @@ class EducationalAttainment(models.Model):
         class Meta:
             managed = False
             db_table = 'educational_attainment'
-
-
-class ElectionResultDetails(models.Model):
-    id = models.IntegerField(primary_key=True)
-    election_date = models.TextField()
-    county_code = models.TextField()
-    contest = models.TextField()
-    choice = models.TextField()
-    party = models.TextField(blank=True, null=True)
-    is_question = models.BooleanField()
-    precinct_name = models.TextField()
-    vote_type = models.TextField()
-    votes = models.IntegerField()
-
-    class Meta:
-        managed = False
-        db_table = 'election_result_details'
-
-
-class ElectionResults(models.Model):
-    id = models.IntegerField(primary_key=True)
-    election_date = models.TextField()
-    county_code = models.TextField()
-    contest = models.TextField()
-    choice = models.TextField()
-    party = models.TextField(blank=True, null=True)
-    is_question = models.BooleanField()
-    precinct_name = models.TextField()
-    votes = models.IntegerField()
-
-    class Meta:
-        managed = False
-        db_table = 'election_results'
-
-
-class ElectionResultsOverUnder(models.Model):
-    id = models.IntegerField(primary_key=True)
-    election_date = models.TextField()
-    contest = models.TextField()
-    county_code = models.TextField()
-    precinct_name = models.TextField()
-    overvotes = models.IntegerField()
-    undervotes = models.IntegerField()
-
-    class Meta:
-        managed = False
-        db_table = 'election_results_over_under'
 
 
 class MailingAddress(models.Model):
@@ -367,20 +294,6 @@ class ResidenceAddress(models.Model):
         db_table = 'residence_address'
 
 
-# class SenMap(models.Model):
-#     id = models.IntegerField(primary_key=True)
-#     area = models.FloatField()
-#     district = models.TextField()
-#     population = models.IntegerField()
-#     ideal_value = models.FloatField()
-#     geometry_wkb = models.TextField()
-#     center_wkb = models.TextField()
-#
-#     class Meta:
-#         managed = False
-#         db_table = 'sen_map'
-#
-
 class VoterCng(models.Model):
     voter_id = models.TextField(primary_key=True)
     cng = models.TextField()
@@ -399,21 +312,6 @@ class VoterDemographics(models.Model):
     class Meta:
         managed = False
         db_table = 'voter_demographics'
-
-
-class VoterHistory(models.Model):
-    voter_id = models.TextField(primary_key=True)
-    date = models.TextField()
-    type = models.TextField()
-    party = models.TextField(blank=True, null=True)
-    county_id = models.TextField()
-    absentee = models.IntegerField()
-    provisional = models.IntegerField()
-    supplemental = models.IntegerField()
-
-    class Meta:
-        managed = False
-        db_table = 'voter_history'
 
 
 class VoterHistorySummary(models.Model):
