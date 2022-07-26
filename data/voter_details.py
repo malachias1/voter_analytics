@@ -3,6 +3,7 @@ from psycopg2.extras import execute_values
 from data.voterdb import VoterDb
 from data.residence_address_management import ResidenceAddressManagement
 from data.mailing_address_management import MailingAddressManagement
+from segmentation.utils import categorize_age
 
 
 class VoterDetails(VoterDb):
@@ -12,7 +13,16 @@ class VoterDetails(VoterDb):
         self.mam = MailingAddressManagement()
 
     @property
-    def voter_names(self):
+    def demographics(self):
+        results = self.fetchall(f"""
+                    select voter_id, race_id, gender, year_of_birth
+                        from voter_demographics
+                """)
+        df = pd.DataFrame.from_records(results, columns=['voter_id', 'race_id', 'gender', 'year_of_birth'])
+        return df.assign(generation=categorize_age(df.year_of_birth))
+
+    @property
+    def names(self):
         results = self.fetchall(f"""
                     select voter_id, last_name, first_name, middle_name, 
                         name_suffix, name_title

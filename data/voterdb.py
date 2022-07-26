@@ -8,6 +8,10 @@ from psycopg2.extensions import register_adapter, AsIs
 import numpy
 
 
+def adapt_numpy_bool(numpy_bool):
+    return AsIs(numpy_bool)
+
+
 def adapt_numpy_float64(numpy_float64):
     return AsIs(numpy_float64)
 
@@ -16,6 +20,7 @@ def adapt_numpy_int64(numpy_int64):
     return AsIs(numpy_int64)
 
 
+register_adapter(numpy.bool_, adapt_numpy_bool)
 register_adapter(numpy.float64, adapt_numpy_float64)
 register_adapter(numpy.int64, adapt_numpy_int64)
 
@@ -42,10 +47,6 @@ class VoterDb:
         cur.execute(f"select id, election_date, contest from election_results")
         results = cur.fetchall()
         return pd.DataFrame.from_records(results, columns=['id', 'election_date', 'contest'])
-
-    @property
-    def county_details(self):
-        return pd.read_sql_query(f"select * from county_details", self.con)
 
     @property
     def county_maps(self):
@@ -138,45 +139,6 @@ class VoterDb:
                                                            'AP_F_GZ', 'AP_M_S', 'AP_M_B', 'AP_M_GX', 'AP_M_M',
                                                            'AP_M_GZ'])
 
-    @property
-    def voter_cng(self):
-        return pd.read_sql_query(f"select voter_id, cng from voter_cng", self.con)
-
-    @property
-    def voter_demographics(self):
-        return pd.read_sql_query(f"select * from voter_demographics", self.con)
-
-    @property
-    def voter_hse(self):
-        return pd.read_sql_query(f"select voter_id, hse from voter_hse", self.con)
-
-    @property
-    def voter_names(self):
-        return pd.read_sql_query(f"select * from voter_name", self.con)
-
-    @property
-    def voter_precinct(self):
-        return pd.read_sql_query(f"select * from voter_precinct", self.con)
-
-    @property
-    def voter_sen(self):
-        return pd.read_sql_query(f"select voter_id, sen from voter_sen", self.con)
-
-    @property
-    def voter_status(self):
-        return pd.read_sql_query(f"select * from voter_status", self.con)
-
-    @property
-    def vtd_maps(self):
-        return pd.read_sql_query(f"select * from vtd_map", self.con)
-
-    @property
-    def vtd_maps_exists(self):
-        q = pd.read_sql_query(f"""
-            select name from sqlite_master where type = 'table' 
-            and name = 'vtd_map';
-        """, self.con)
-        return len(q.index) > 0
 
     def initialize(self):
         """
