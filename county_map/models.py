@@ -1,4 +1,4 @@
-from core.models import BaseMapModel
+from core.models import BaseMapModel, BaseMap
 from django.db import models
 from data.voterdb import VoterDb
 from vtd_map.models import VtdMap
@@ -12,6 +12,20 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 
+class CountyMapManager(models.Manager, BaseMap):
+    @property
+    def state_map(self):
+        records = [{'county_code': x.county_code,
+                    'county_fips': x.county_fips,
+                    'geoid': x.geoid,
+                    'county_name': x.county_name,
+                    'geometry_wkb': x.geometry_wkb
+                    } for x in self.all()]
+        df = pd.DataFrame.from_records(records)
+        df = df.assign(geometry=self.from_wkb(df.geometry_wkb)).drop(columns=['geometry_wkb'])
+        return gpd.GeoDataFrame(df, crs=self.CRS_LAT_LON)
+
+
 class CountyMap(BaseMapModel):
     county_code = models.TextField(primary_key=True)
     state_fips = models.TextField()
@@ -22,6 +36,8 @@ class CountyMap(BaseMapModel):
     awater = models.TextField()
     geometry_wkb = models.TextField()
     center_wkb = models.TextField()
+
+    objects = CountyMapManager()
 
     @property
     def ga_house_districts(self):

@@ -22,7 +22,7 @@ class CngMapTestCase(unittest.TestCase):
         self.assertIn('013', d)
 
     def test_get_ga_house_districts(self):
-        d = CountyMap.get_ga_house_districts('060')
+        d = CountyMap.ga_house_districts('060')
         print(d)
 
     def test_get_ga_senate_districts(self):
