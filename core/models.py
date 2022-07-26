@@ -4,10 +4,20 @@ from geopandas import GeoSeries
 from geopandas import GeoDataFrame
 
 
-class BaseMapModel(models.Model):
+class BaseMap:
     CRS_METERS = 'epsg:3035'
     CRS_LAT_LON = 'epsg:4326'
 
+    @classmethod
+    def centroid(cls, gdf):
+        return gdf.to_crs(crs=cls.CRS_METERS).centroid.to_crs(crs=cls.CRS_LAT_LON)
+
+    @classmethod
+    def from_wkb(cls, geometry_wkb):
+        return GeoSeries.from_wkb(geometry_wkb, crs=cls.CRS_METERS).to_crs(crs=cls.CRS_LAT_LON)
+
+
+class BaseMapModel(models.Model, BaseMap):
     @property
     def geometry(self):
         return self.from_wkb(pd.Series(self.geometry_wkb))
@@ -18,14 +28,6 @@ class BaseMapModel(models.Model):
             return self.from_wkb(pd.Series(self.center_wkb))
         except AttributeError as _:
             return self.centroid(GeoDataFrame(geometry=[self.geometry], crs=self.CRS_LAT_LON))
-
-    @classmethod
-    def centroid(cls, gdf):
-        return gdf.to_crs(crs=cls.CRS_METERS).centroid.to_crs(crs=cls.CRS_LAT_LON)
-
-    @classmethod
-    def from_wkb(cls, geometry_wkb):
-        return GeoSeries.from_wkb(geometry_wkb, crs=cls.CRS_METERS).to_crs(crs=cls.CRS_LAT_LON)
 
     @classmethod
     def get_object(cls, map_id):
