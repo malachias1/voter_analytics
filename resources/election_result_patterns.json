@@ -1,5 +1,11 @@
 [
   {
+    "category": "president",
+    "canonical_name": "PRESIDENT OF THE UNITED STATES",
+    "type": "federal",
+    "pattern": "PRESIDENT OF THE UNITED STATES"
+  },
+  {
     "category": "us_house",
     "canonical_name": "US HOUSE",
     "type": "federal",
@@ -102,7 +108,7 @@
     "category": "board_of_commissioners",
     "canonical_name": "BOARD OF COMMISSIONERS",
     "type": "county",
-    "pattern": "(BOARD|BD) OF COMMISSION",
+    "pattern": "(BOARD|BD) OF COMMISSION|CO COMMISSION DIST",
     "subcategory": "\\b(\\d+)\\b",
     "party": "\\b(REP)\\b|\\b(DEM)\\b|"
   },
@@ -110,7 +116,7 @@
     "category": "county_commission_chairperson",
     "canonical_name": "COUNTY COMMISSION CHAIRPERSON",
     "type": "county",
-    "pattern": "COUNTY COMMISSION CHAIRPERSON",
+    "pattern": "COUNTY COMMISSION CHAIRPERSON|CO COMMISSION CHAIR|COUNTY CHAIR",
     "party": "\\b(REP)\\b|\\b(DEM)\\b|"
   },
   {
@@ -129,9 +135,9 @@
   },
   {
     "category": "public_service_commissioner",
-    "canonical_name": "PUBLIC SERVICE COMMISSIONER",
+    "canonical_name": "PUBLIC SERVICE COMMISSION",
     "type": "state",
-    "pattern": "PUBLIC SERVICE COMMISSIONER|\\bPSC\\b",
+    "pattern": "PUBLIC SERVICE COMMISSIONER|PUBLIC SERVICE COMMISSION|\\bPSC\\b",
     "subcategory": "\\b(\\d+)\\b",
     "party": "\\b(REP)\\b|\\b(DEM)\\b|"
   },
@@ -150,10 +156,11 @@
     "party": "\\b(REP)\\b|\\b(DEM)\\b|"
   },
   {
-    "category": "question",
-    "canonical_name": "QUESTION",
+    "category": "constitutional_amendment",
+    "canonical_name": "CONSTITUTIONAL AMENDMENT",
     "type": "county",
-    "pattern": "QUESTION|QUESITON|REGULATE|BY THE DRINK|PACKAGE|SUNDAY SALES|IMPROVEMENT BOND|REFERENDUM|DISTILLED",
+    "pattern": "CONSTITUTIONAL AMENDMENT",
+    "subcategory": "#(\\d+)\\b",
     "is_question": true
   },
   {
@@ -305,5 +312,76 @@
     "type": "county",
     "pattern": "^COMMISSIONER",
     "subcategory": "\\b(\\d+)\\b"
+  },
+  {
+    "category": "sheriff",
+    "canonical_name": "SHERIFF",
+    "type": "county",
+    "pattern": "SHERIFF"
+  },
+  {
+    "category": "coroner",
+    "canonical_name": "CORONER",
+    "type": "county",
+    "pattern": "CORONER"
+  },
+  {
+    "category": "surveyor",
+    "canonical_name": "SURVEYOR",
+    "type": "county",
+    "pattern": "SURVEYOR"
+  },
+  {
+    "category": "question",
+    "canonical_name": "QUESTION",
+    "type": "county",
+    "pattern": "QUESTION|QUESITON|REGULATE|BY THE DRINK|PACKAGE|SUNDAY SALES|IMPROVEMENT BOND|REFERENDUM|DISTILLED|BONDS|BOND|SPECIAL",
+    "is_question": true
+  },
+  {
+    "category": "fire_advisory_board",
+    "canonical_name": "FIRE ADVISORY BOARD",
+    "type": "county",
+    "pattern": "FIRE ADVISORY BOARD",
+    "subcategory": "\\b(\\d+)\\b"
+  },
+  {
+    "category": "municipal_court_judge",
+    "canonical_name": "MUNICIPAL COURT JUDGE",
+    "type": "county",
+    "pattern": "MUNICIPAL COURT JUDGE"
+  },
+  {
+    "category": "municipal_court_clerk",
+    "canonical_name": "MUNICIPAL COURT CLERK",
+    "type": "county",
+    "pattern": "MUNICIPAL COURT CLERK"
+  },
+  {
+    "category": "municipal_court_clerk",
+    "canonical_name": "MUNICIPAL COURT CLERK",
+    "type": "county",
+    "pattern": "MUNICIPAL COURT CLERK"
+  },
+  {
+    "category": "presiding_judge_civil_magistrate_crt",
+    "canonical_name": "PRESIDING JUDGE CIVIL-MAGISTRATE CRT",
+    "type": "county",
+    "pattern": "PRESIDING JUDGE CIVIL-MAGISTRATE CRT"
+  },
+  {
+    "category": "chief_executive_officer",
+    "canonical_name": "CHIEF EXECUTIVE OFFICER",
+    "type": "county",
+    "pattern": "CHIEF EXECUTIVE OFFICER"
+  },
+  {
+    "category": "clerk_of_courts",
+      "canonical_name": "CLERK OF COURTS",
+    "type": "county",
+    "pattern": "CLERK OF COURTS"
   }
+
+
+
 ]
