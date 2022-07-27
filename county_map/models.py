@@ -10,6 +10,7 @@ import geopandas as gpd
 import json
 import plotly.express as px
 import plotly.graph_objects as go
+from shapely.geometry import MultiPolygon, Polygon
 
 
 class CountyMapManager(models.Manager, BaseMap):
@@ -40,35 +41,8 @@ class CountyMap(BaseMapModel):
     objects = CountyMapManager()
 
     @property
-    def ga_house_districts(self):
-        return self.get_districts('hse')
-
-    @property
-    def ga_senate_districts(self):
-        return self.get_districts('sen')
-
-    @property
-    def us_house_districts(self):
-        return self.get_districts('cng')
-
-    @property
-    def ga_house_maps(self):
-        for d in self.ga_house_districts:
-            yield HseMap.get_map(d)
-
-    @property
-    def ga_senate_maps(self):
-        for d in self.ga_senate_districts:
-            yield SenMap.get_map(d)
-
-    @property
-    def us_house_maps(self):
-        for d in self.us_house_districts:
-            yield CngMap.get_map(d)
-
-    @property
     def vtds_maps(self):
-        return VtdMap.get_vtd_maps(self.county_code)
+        return VtdMap.objects.get_maps(self.county_code)
 
     def get_map_data_extensions(self):
         return {'county_code': [self.county_code],
@@ -85,105 +59,67 @@ class CountyMap(BaseMapModel):
         map_id = map_id if isinstance(map_id, str) else f'{map_id:03d}'
         return cls.objects.get(county_code=map_id)
 
-    def get_choropleth(self, base_map, variables, labels=None, hover_data=None):
-        if hover_data is None:
-            hover_data = {}
-        hover_data.update({'district': True, 'name': True, 'name_district': False})
-        if labels is None:
-            labels = {}
-        labels.update({'name': 'Precinct Name'})
-        base_map = base_map.drop(columns=['center'])
+    def get_choropleth(self, dmaps, labels=None, hover_data=None):
+        hover_data = hover_data or {}
+        hover_data.update({'district': True, 'precinct_name': True})
+        labels = labels or {}
+        labels.update({'precinct_name': 'Precinct Name'})
+
+        vmaps = self.vtds_maps[['precinct_name', 'geometry']]
+        vmaps.geometry = vmaps.geometry.apply(self.to_multipolygon)
+        dmaps.geometry = dmaps.geometry.apply(self.to_multipolygon)
+        base_map = vmaps.overlay(dmaps, how='intersection', keep_geom_type=True)
+        # vtds are split across districts and need to have unique names.
+        base_map = base_map.assign(vtd_id=base_map.district+base_map.precinct_name)
+
         gj = json.loads(base_map.to_json())
         center = base_map.to_crs(crs='epsg:3035').centroid.to_crs(crs='epsg:4326').iloc[0]
-        lc = px.colors.hex_to_rgb(px.colors.sequential.Viridis[0])
-        hc = px.colors.hex_to_rgb(px.colors.sequential.Viridis[-1])
-        districts = sorted(base_map.district.unique())
-        # colors = px.colors.n_colors(lc, hc, len(districts))
-        # color_map = {k: webcolors.rgb_to_hex([int(vv) for vv in v]) for k, v in zip(districts, colors)}
-        # print(color_map)
+
         fig = px.choropleth_mapbox(
             base_map,
             geojson=gj,
             color='district',
-            locations='name_district',
-            featureidkey="properties.name_district",
+            locations='vtd_id',
+            featureidkey="properties.vtd_id",
             center={"lat": center.y, "lon": center.x},
             opacity=0.5,
             mapbox_style="open-street-map", zoom=9.5,
-            labels=labels,
-            hover_data=hover_data,
-            color_discrete_sequence=px.colors.qualitative.Alphabet
+            labels={'precinct_name': 'Precinct Name'},
+            hover_data={'district': True, 'precinct_name': True, 'vtd_id': False}
         )
 
-        fig.update_layout(
-            legend=dict(
-                yanchor="top",
-                y=0.99,
-                xanchor="left",
-                x=0.01,
-                traceorder="reversed",
-                title_font_family="Times New Roman",
-                title_font_color="black",
-                font=dict(
-                    family="Courier",
-                    size=12,
-                    color="black"
-                ),
-                bgcolor="white",
-                bordercolor="Black",
-                borderwidth=1
-            ),
-            annotations=[
-                go.layout.Annotation(
-                    text='Copyright November Pathways, 2022',
-                    align='center',
-                    showarrow=False,
-                    yanchor="middle",
-                    xanchor="center",
-                    borderwidth=0,
-                    font=dict(
-                        family="Times New Roman",
-                        size=48,
-                        color="gray"
-                    ),
-                    opacity=0.5)
-            ]
-        )
+        self.add_watermark(fig)
+        self.configure_legend(fig)
 
         fig.update_layout(margin={"r": 0, "t": 30, "l": 0, "b": 30})
         return fig
-
-    def get_districts(self, district_type):
-        db = VoterDb()
-        results = db.fetchall(f"""
-            select distinct vd.{district_type} 
-            from voter_{district_type} as vd
-            join voter_precinct as vp on vp.voter_id = vd.voter_id
-            join precinct_details as pd on vp.precinct_id = pd.id
-            where county_code = '{self.county_code}'
-        """)
-        return [x[0] for x in results]
 
     def get_district_map(self, maps):
         vtd_maps = self.vtds_maps
         d_maps = []
         for m in maps:
-            d_maps.append(m.overlay(vtd_maps[['name', 'geometry']], how='intersection'))
+            d_maps.append(m.overlay(vtd_maps[['precinct_name', 'geometry']], how='intersection', keep_geom_type=True))
         gdf = gpd.GeoDataFrame(pd.concat(d_maps, ignore_index=True), crs='epsg:4326')
-        gdf = gdf.assign(name_district=gdf.district + gdf.name)
         return gdf.sort_values(by='district', ascending=False)
 
-    def get_ga_house_choropleth(self):
-        d_map = self.get_district_map(self.ga_house_maps)
-        return self.get_choropleth(d_map, None, {'district': "State House District"})
+    def to_multipolygon(self, p):
+        x = type(p)
+        if isinstance(p, MultiPolygon):
+            return p
+        return MultiPolygon([p])
+
+    @property
+    def ga_house_choropleth(self):
+        return self.get_choropleth(HseMap.objects.get_maps(self.county_code),
+                                   labels={'district': "State House District"})
 
     def get_ga_senate_choropleth(self):
-        d_map = self.get_district_map(self.ga_senate_maps)
-        return self.get_choropleth(d_map, None, {'district': "State Senate District"})
+        return self.get_choropleth(SenMap.objects.get_maps(self.county_code),
+                                   labels={'district': "State Senate District"})
 
     def get_us_house_choropleth(self):
-        d_map = self.get_district_map(self.us_house_maps)
-        return self.get_choropleth(d_map, None, {'district': "US House District"})
+        return self.get_choropleth(CngMap.objects.get_maps(self.county_code),
+                                   labels={'district': "US House District"})
 
     class Meta:
         managed = False
