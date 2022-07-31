@@ -1,16 +1,10 @@
 from core.models import BaseMapModel, BaseMap
 from django.db import models
-from data.voterdb import VoterDb
 from vtd_map.models import VtdMap
-from cng_map.models import CngMap
-from hse_map.models import HseMap
-from sen_map.models import SenMap
 import pandas as pd
 import geopandas as gpd
 import json
 import plotly.express as px
-import plotly.graph_objects as go
-from shapely.geometry import MultiPolygon, Polygon
 
 
 class CountyMapManager(models.Manager, BaseMap):
@@ -26,11 +20,15 @@ class CountyMapManager(models.Manager, BaseMap):
         df = df.assign(geometry=self.from_wkb(df.geometry_wkb)).drop(columns=['geometry_wkb'])
         return gpd.GeoDataFrame(df, crs=self.CRS_LAT_LON)
 
+    def get_map(self, county_code):
+        county_code = county_code if isinstance(county_code, str) else f'{county_code:03d}'
+        return self.get(county_code=county_code).as_geodataframe
+
 
 class CountyMap(BaseMapModel):
-    county_code = models.TextField(primary_key=True)
-    state_fips = models.TextField()
-    county_fips = models.TextField()
+    county_code = models.CharField(max_length=3, primary_key=True)
+    state_fips = models.CharField(max_length=2)
+    county_fips = models.CharField(max_length=3)
     geoid = models.TextField()
     county_name = models.TextField()
     aland = models.TextField()
@@ -41,40 +39,40 @@ class CountyMap(BaseMapModel):
     objects = CountyMapManager()
 
     @property
+    def as_record(self):
+        record = super().as_record
+        record.update({'county_code': self.county_code,
+                       'state_fips': self.state_fips,
+                       'county_fips': self.county_fips,
+                       'geoid': self.geoid,
+                       'county_name': self.county_name,
+                       'aland': self.aland,
+                       'awater': self.awater
+                       })
+        return record
+
+    @property
     def vtds_maps(self):
         return VtdMap.objects.get_maps(self.county_code)
 
-    def get_map_data_extensions(self):
-        return {'county_code': [self.county_code],
-                'state_fips': [self.state_fips],
-                'county_fips': [self.county_fips],
-                'geoid': [self.geoid],
-                'county_name': [self.county_name],
-                'aland': [self.aland],
-                'awater': [self.awater]
-                }
-
-    @classmethod
-    def get_object(cls, map_id):
-        map_id = map_id if isinstance(map_id, str) else f'{map_id:03d}'
-        return cls.objects.get(county_code=map_id)
-
-    def get_choropleth(self, dmaps, labels=None, hover_data=None):
+    def get_district_choropleth(self, dmaps, labels=None, hover_data=None):
         hover_data = hover_data or {}
         hover_data.update({'district': True, 'precinct_name': True})
         labels = labels or {}
         labels.update({'precinct_name': 'Precinct Name'})
 
         vmaps = self.vtds_maps[['precinct_name', 'geometry']]
-        vmaps.geometry = vmaps.geometry.apply(self.to_multipolygon)
-        dmaps.geometry = dmaps.geometry.apply(self.to_multipolygon)
         base_map = vmaps.overlay(dmaps, how='intersection', keep_geom_type=True)
         # vtds are split across districts and need to have unique names.
-        base_map = base_map.assign(vtd_id=base_map.district+base_map.precinct_name)
+        # IF THEY DO NOT THEY WILL NOT DISPLAY
+        base_map = base_map.assign(vtd_id=base_map.district + base_map.precinct_name)
+        base_map = base_map.sort_values(['district'])
+        if 'center' in base_map.columns:
+            base_map = base_map.drop(columns=['center'])
 
         gj = json.loads(base_map.to_json())
         center = base_map.to_crs(crs='epsg:3035').centroid.to_crs(crs='epsg:4326').iloc[0]
-
+        category_orders = {'district': sorted(base_map.district.unique())}
         fig = px.choropleth_mapbox(
             base_map,
             geojson=gj,
@@ -84,8 +82,9 @@ class CountyMap(BaseMapModel):
             center={"lat": center.y, "lon": center.x},
             opacity=0.5,
             mapbox_style="open-street-map", zoom=9.5,
-            labels={'precinct_name': 'Precinct Name'},
-            hover_data={'district': True, 'precinct_name': True, 'vtd_id': False}
+            labels=labels,
+            hover_data=hover_data,
+            category_orders=category_orders
         )
 
         self.add_watermark(fig)
@@ -101,25 +100,6 @@ class CountyMap(BaseMapModel):
             d_maps.append(m.overlay(vtd_maps[['precinct_name', 'geometry']], how='intersection', keep_geom_type=True))
         gdf = gpd.GeoDataFrame(pd.concat(d_maps, ignore_index=True), crs='epsg:4326')
         return gdf.sort_values(by='district', ascending=False)
-
-    def to_multipolygon(self, p):
-        x = type(p)
-        if isinstance(p, MultiPolygon):
-            return p
-        return MultiPolygon([p])
-
-    @property
-    def ga_house_choropleth(self):
-        return self.get_choropleth(HseMap.objects.get_maps(self.county_code),
-                                   labels={'district': "State House District"})
-
-    def get_ga_senate_choropleth(self):
-        return self.get_choropleth(SenMap.objects.get_maps(self.county_code),
-                                   labels={'district': "State Senate District"})
-
-    def get_us_house_choropleth(self):
-        return self.get_choropleth(CngMap.objects.get_maps(self.county_code),
-                                   labels={'district': "US House District"})
 
     class Meta:
         managed = False

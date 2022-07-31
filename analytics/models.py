@@ -180,6 +180,15 @@ class PrecinctDetails(models.Model):
     precinct_id = models.TextField()
     precinct_name = models.TextField(blank=True, null=True)
 
+    @property
+    def as_record(self):
+        return {
+            'id': self.id,
+            'county_code': self.county_code,
+            'precinct_id': self.precinct_id,
+            'precinct_name': self.precinct_name,
+        }
+
     class Meta:
         managed = False
         db_table = 'precinct_details'
@@ -303,17 +312,6 @@ class VoterCng(models.Model):
         db_table = 'voter_cng'
 
 
-class VoterDemographics(models.Model):
-    voter_id = models.TextField(primary_key=True)
-    race_id = models.TextField()
-    gender = models.TextField()
-    year_of_birth = models.IntegerField()
-
-    class Meta:
-        managed = False
-        db_table = 'voter_demographics'
-
-
 class VoterHistorySummary(models.Model):
     voter_id = models.TextField(primary_key=True)
     county_code = models.TextField()
@@ -357,6 +355,13 @@ class VoterName(models.Model):
 class VoterPrecinct(models.Model):
     voter_id = models.TextField(primary_key=True)
     precinct_id = models.IntegerField()
+
+    @property
+    def as_record(self):
+        return {
+            'voter_id': self.voter_id,
+            'precinct_id': self.precinct_id
+        }
 
     class Meta:
         managed = False
@@ -403,20 +408,6 @@ class VoterSen(models.Model):
     class Meta:
         managed = False
         db_table = 'voter_sen'
-
-
-class VoterStatus(models.Model):
-    voter_id = models.TextField(primary_key=True)
-    status = models.TextField()
-    status_reason = models.TextField(blank=True, null=True)
-    date_added = models.TextField()
-    date_changed = models.TextField()
-    registration_date = models.TextField()
-    last_contact_date = models.TextField()
-
-    class Meta:
-        managed = False
-        db_table = 'voter_status'
 
 
 class WorkTravelTime(models.Model):

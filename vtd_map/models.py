@@ -1,8 +1,23 @@
 import pandas as pd
 from django.db import models
-from core.models import BaseMapModel
-from data.voterdb import VoterDb
+from core.models import BaseMapModel, BaseMap
 import geopandas as gpd
+
+
+class VtdMapManager(models.Manager, BaseMap):
+    def get_maps(self, counties):
+        """
+
+        :param counties: a county code or list of county codes
+        :return: a GeoDataFrame
+        """
+        if isinstance(counties, str):
+            counties = (counties,)
+        records = []
+        for o in self.filter(county_code__in=counties):
+            records.append(o.as_record)
+        df = pd.DataFrame.from_records(records)
+        return gpd.GeoDataFrame(df, crs=self.CRS_LAT_LON)
 
 
 class VtdMap(BaseMapModel):
@@ -16,36 +31,29 @@ class VtdMap(BaseMapModel):
     geometry_wkb = models.TextField()
     center_wkb = models.TextField()
 
-    @classmethod
-    def get_vtd_maps(cls, county_code):
-        db = VoterDb()
-        results = db.fetchall(f"""
-                    select vm.id, vm.area, vm.precinct_id, vm.precinct_name, 
-                        vm.geometry_wkb, vm.center_wkb
-                    from vtd_map as vm
-                    where vm.county_code = '{county_code}'
-                """)
-        df = pd.DataFrame.from_records(results, columns=['precinct_id', 'area', 'name', 'description',
-                                                         'geometry_wkb', 'center_wkb'])
-        df = df.assign(geometry=cls.from_wkb(df.geometry_wkb),
-                       center=cls.from_wkb(df.center_wkb))
-        gdf = gpd.GeoDataFrame(df, crs=cls.CRS_LAT_LON)
-        return gdf
+    objects = VtdMapManager()
 
-    def get_map_data_extensions(self):
-        return {'id': [self.id],
-                'area': [self.area],
-                'precinct_id': [self.precinct_id],
-                'precinct_name': [self.precinct_name],
-                'county_code': [self.county_code],
-                'county_fips': [self.county_fips],
-                'county_name': [self.county_name]
-                }
-
-    @classmethod
-    def get_object(cls, map_id: int):
-        return cls.objects.get(id=map_id)
+    @property
+    def as_record(self):
+        record = super().as_record
+        record.update({'id': self.id,
+                       'area': self.area,
+                       'precinct_id': self.precinct_id,
+                       'precinct_name': self.precinct_name,
+                       'county_code': self.county_code,
+                       'county_fips': self.county_fips,
+                       'county_name': self.county_name
+                       })
+        return record
 
     class Meta:
         managed = False
         db_table = 'vtd_map'
+
+
+class VtdMapMixin:
+
+    @property
+    def county_vtd_map(self):
+        vmaps = VtdMap.objects.get_maps(self.counties)
+        return vmaps.assign(vtd_id=range(0, len(vmaps.index)))

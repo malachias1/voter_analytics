@@ -9,6 +9,6 @@ from hse_map.models import HseMap
 
 
 class HseMapTestCase(unittest.TestCase):
-    def test_get_maps(self):
-        maps = HseMap.objects.get_maps('033', )
+    def test_get_county_choropleth(self):
+        maps = HseMap.objects.get_county_choropleth('033')
         print(maps.shape)
