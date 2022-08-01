@@ -1,0 +1,41 @@
+{
+  "date": "2022-5-24",
+  "drop": [
+    "SS07D"
+  ],
+  "combine": {
+    "07A1": "07A",
+    "07D1": "07D"
+  },
+  "contest_mappings": {
+    "DEM - STATE HOUSE DIST 54": "D_undervote",
+    "REP - STATE HOUSE DIST 54": "R_undervote"
+  },
+  "logo": {
+    "source": "http://citizenga.com/wp-content/uploads/2022/08/john-bailey-HD54.png",
+    "x": 0.98,
+    "y": 0.98,
+    "xanchor": "right",
+    "yanchor": "top",
+    "sizex": 0.1,
+    "sizey": 0.1
+  },
+  "labels": {
+    "precinct_name": "Precinct Name",
+    "r_affinity": "Republican Party Affinity",
+    "R": "Bailey Votes",
+    "D": "Holland (I) Votes",
+    "R_undervote": "Bailey Undervotes",
+    "D_undervote": "Holland (I) Undervotes"
+  },
+  "hover_data": {
+    "precinct_name": true,
+    "r_affinity": ":.1f",
+    "R": true,
+    "D": true,
+    "R_undervote": true,
+    "D_undervote": true,
+    "vtd_id": false
+  },
+  "description": "<b>2022 General Election Primary</b><br><i><b>State House District 54</b></i><br><br><i>HD 54 Republican Primary Summary</i><br>Ballots cast = $r_total<br>Votes for John Bailey = $r_candidate<br>Undervotes = $r_undervote<br><br><i>HD 54 Democratic Primary Summary</i><br>Ballots cast = $d_total<br>Votes for Betsy Holland (I) = $d_candidate<br>Undervotes = $d_undervote"
+}

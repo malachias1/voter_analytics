@@ -1,0 +1,18 @@
+{
+  "logo": {
+    "source": "http://citizenga.com/wp-content/uploads/2022/08/john-bailey-HD54.png",
+    "x": 0.98,
+    "y": 0.98,
+    "xanchor": "right",
+    "yanchor": "top",
+    "sizex": 0.1,
+    "sizey": 0.1
+  },
+  "labels": {
+    "precinct_name": "Precinct Name"
+  },
+  "hover_data": {
+    "precinct_name": true,
+    "vtd_id": false
+  }
+}

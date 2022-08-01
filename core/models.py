@@ -13,6 +13,10 @@ from election_results.models import Detail, OverUnderVote
 from voter_demographics.models import VoterDemographics
 from voter_status.models import VoterStatus
 from collections import defaultdict
+from pathlib import Path
+from datetime import datetime
+from string import Template
+from segmentation.utils import categorize_age
 
 
 class BaseMap:
@@ -58,41 +62,40 @@ class BaseMap:
         )
 
     @classmethod
-    def add_logo(cls, fig, source, x, y, xanchor, yanchor, sizex, sizey):
+    def add_logo(cls, fig, config):
         fig.add_layout_image(
             dict(
-                source=source,
-                yanchor=yanchor,
-                xanchor=xanchor,
+                source=config.logo_source,
+                yanchor=config.logo_yanchor,
+                xanchor=config.logo_xanchor,
                 xref="paper",
                 yref="paper",
-                x=x,
-                y=y,
-                sizex=sizex,
-                sizey=sizey,
+                x=config.logo_x,
+                y=config.logo_y,
+                sizex=config.logo_sizex,
+                sizey=config.logo_sizey,
                 opacity=1.0)
         )
 
     @classmethod
-    def add_watermark(cls, fig, description):
-        fig.update_layout(
-            annotations=[
-                cls.build_map_description_annotation(description),
-                go.layout.Annotation(
-                    text='Copyright November Pathways, 2022',
-                    align='center',
-                    showarrow=False,
-                    yanchor="middle",
-                    xanchor="center",
-                    borderwidth=0,
-                    font=dict(
-                        family="Times New Roman",
-                        size=48,
-                        color="gray"
-                    ),
-                    opacity=0.5)
-            ]
+    def add_watermark(cls, fig, description=None):
+        fig.add_layout_image(
+            dict(
+                source='https://citizenga.com/wp-content/uploads/2022/08/novemberpathways.png',
+                yanchor='bottom',
+                xanchor='left',
+                xref="paper",
+                yref="paper",
+                x=.02,
+                y=.02,
+                sizex=.15,
+                sizey=.15,
+                opacity=1.0)
         )
+
+        if description is not None:
+            fig.update_layout(annotations=[cls.build_map_description_annotation(description)])
+
         return fig
 
     @classmethod
@@ -223,6 +226,88 @@ class DistrictMapModelManager(BaseMapModelManager):
         return gpd.GeoDataFrame(records, crs=self.CRS_LAT_LON)
 
 
+class DistrictMapConfig:
+    def __init__(self, path):
+        with Path(path).open('r') as f:
+            self.config = json.load(f)
+
+    @property
+    def above(self):
+        return self.config['above']
+
+    @property
+    def age(self):
+        return self.config['age']
+
+    @property
+    def combine(self):
+        return self.config['combine']
+
+    @property
+    def contest_mappings(self):
+        return self.config['contest_mappings']
+
+    @property
+    def date(self):
+        return datetime.strptime(self.config['date'], '%Y-%m-%d')
+
+    @property
+    def description(self):
+        return self.config['description']
+
+    @property
+    def drop(self):
+        return self.config['drop']
+
+    @property
+    def hover_data(self):
+        return self.config['hover_data']
+
+    @property
+    def labels(self):
+        return self.config['labels']
+
+    @property
+    def logo_sizex(self):
+        return self.config['logo']['sizex']
+
+    @property
+    def logo_sizey(self):
+        return self.config['logo']['sizey']
+
+    @property
+    def logo_source(self):
+        return self.config['logo']['source']
+
+    @property
+    def logo_x(self):
+        return self.config['logo']['x']
+
+    @property
+    def logo_xanchor(self):
+        return self.config['logo']['xanchor']
+
+    @property
+    def logo_y(self):
+        return self.config['logo']['y']
+
+    @property
+    def logo_yanchor(self):
+        return self.config['logo']['yanchor']
+
+    @property
+    def subtitle(self):
+        return self.config['subtitle']
+
+    @property
+    def title(self):
+        return self.config['title']
+
+    @property
+    def year(self):
+        return self.config['year']
+
+
 class DistrictMapModel(BaseMapModel):
     id = models.IntegerField(primary_key=True)
     area = models.FloatField()
@@ -279,7 +364,8 @@ class DistrictMapModel(BaseMapModel):
         precinct_ids = vp.id.unique()
         details = pd.DataFrame.from_records([x.as_record for x in PrecinctDetails.objects.filter(id__in=precinct_ids)])
         vp = vp.merge(details, on='id', how='inner')
-        d = d.merge(vp, on='voter_id', how='inner').drop(columns=['id'])
+        d = d.merge(vp, on='voter_id', how='inner').drop(columns=['id', 'precinct_name'])
+        d = d.rename(columns={'precinct_id': 'precinct_name'})
         return d
 
     @property
@@ -300,8 +386,8 @@ class DistrictMapModel(BaseMapModel):
         """
         raise NotImplemented('voters not implemented!')
 
-    @property
-    def vtd_choropleth_map(self):
+    def get_vtd_map(self, config_path):
+        config = DistrictMapConfig(config_path)
         district_vtd_map = self.district_vtd_map
         area = district_vtd_map.to_crs(self.CRS_METERS).area
         district_vtd_map = district_vtd_map[area > 5000.0]
@@ -316,13 +402,13 @@ class DistrictMapModel(BaseMapModel):
             center={"lat": center.y, "lon": center.x},
             opacity=0.5,
             mapbox_style="open-street-map", zoom=12,
-            labels={'precinct_name': 'Precinct Name'},
-            hover_data={'precinct_name': True,
-                        'vtd_id': False}
+            labels=config.labels,
+            hover_data=config.hover_data
         )
 
         self.add_watermark(fig)
         self.configure_legend(fig)
+        self.add_logo(fig, config)
         fig.update_layout(margin={"r": 30, "t": 30, "l": 30, "b": 30})
         return fig
 
@@ -339,24 +425,23 @@ class DistrictMapModel(BaseMapModel):
         return Detail.objects.get_results(self.contest_category, self.district, election_date)
 
     @classmethod
-    def combiner(cls, df, drop=None, combine=None):
-        for r in drop:
-            df = df.drop(r)
+    def combiner(cls, df, config: DistrictMapConfig):
+        for r in config.drop:
+            df = df.drop(r, errors='ignore')
         df = df.assign(p=df.index)
-        for k, master in combine.items():
+        for k, master in config.combine.items():
             df.at[k, 'p'] = master
         df = df.groupby(['p'], as_index=False).sum().reset_index(drop=True)
         df = df.rename(columns={'p': 'precinct_name'})
         return df
 
-    def get_party_tally(self, election_date, drop=None, combine=None):
-        drop = drop or []
-        combine = combine or {}
+    def get_party_tally(self, config: DistrictMapConfig):
+        election_date = config.date
         details = self.get_election_result_details(election_date)
         df = pd.DataFrame.from_records([d.as_record for d in details])
         df = pd.DataFrame(df.groupby(['party', 'precinct_name'], as_index=False)['votes'].sum())
         df = df.pivot(index='precinct_name', columns='party', values='votes')
-        df = self.combiner(df, drop, combine)
+        df = self.combiner(df, config)
         df.index.name = None
         return df
 
@@ -365,10 +450,9 @@ class DistrictMapModel(BaseMapModel):
         df = df.assign(r_affinity=df.R / (df.R + df.D) * 100, d_affinity=df.D / (df.R + df.D) * 100)
         return df
 
-    def get_undervote(self, election_date, drop=None, combine=None, contest_mappings=None):
-        drop = drop or []
-        combine = combine or {}
-        contest_mappings = contest_mappings or {}
+    def get_undervote(self, config):
+        election_date = config.date
+        contest_mappings = config.contest_mappings
         details = self.get_election_result_details(election_date)
         df = pd.DataFrame.from_records([d.as_record for d in details])
         contests = df.contest.unique()
@@ -381,7 +465,7 @@ class DistrictMapModel(BaseMapModel):
         df = pd.DataFrame.from_records(over_under_vote)
         df = df.assign(contest=df.contest.apply(lambda x: contest_mappings.get(x) if x in contest_mappings else x))
         df = df.pivot(index='precinct_name', columns='contest', values='votes')
-        df = self.combiner(df, drop, combine)
+        df = self.combiner(df, config)
         df = df.rename(columns={'votes': 'undervotes'})
         df.index.name = None
         return df
@@ -392,10 +476,10 @@ class DistrictMapModel(BaseMapModel):
     #     print(f'pname={gdf.precinct_name.loc[i]}, darea={gdf.darea.loc[i]}, '
     #           f'orig={gdf.orig_area.loc[i]}, fraction={gdf.darea.loc[i] / gdf.orig_area.loc[i]}')
 
-    def get_party_tally_choropleth(self, election_date, drop=None, combine=None,
-                                   contest_mappings=None, title=None, subtitle=None, logo=None):
-        results = self.get_party_tally(election_date, drop=drop, combine=combine)
-        undervote = self.get_undervote(election_date, drop=drop, combine=combine, contest_mappings=contest_mappings)
+    def get_party_tally_choropleth(self, config_path):
+        config = DistrictMapConfig(config_path)
+        results = self.get_party_tally(config)
+        undervote = self.get_undervote(config)
         df = results.merge(undervote, on='precinct_name', how='inner')
         df = df.assign(r_ballots=df.R_undervote + df.R, d_ballots=df.D_undervote + df.D)
         df = df.assign(r_affinity=df.r_ballots / (df.r_ballots + df.d_ballots) * 100,
@@ -413,20 +497,8 @@ class DistrictMapModel(BaseMapModel):
             center={"lat": center.y, "lon": center.x},
             opacity=0.5,
             mapbox_style="open-street-map", zoom=12,
-            labels={'precinct_name': 'Precinct Name',
-                    'r_affinity': 'Republican<br>Party Affinity',
-                    'R': 'Republican Votes',
-                    'D': 'Democratic Votes',
-                    'R_undervote': 'Republican Primary Under Votes',
-                    'D_undervote': 'Democratic Primary Under Votes',
-                    },
-            hover_data={'precinct_name': True,
-                        'r_affinity': ':.1f',
-                        'R': True,
-                        'D': True,
-                        'R_undervote': True,
-                        'D_undervote': True,
-                        'vtd_id': False},
+            labels=config.labels,
+            hover_data=config.hover_data,
             color_continuous_scale='Plasma'
         )
 
@@ -437,117 +509,92 @@ class DistrictMapModel(BaseMapModel):
         d_candidate = df.D.sum()
         d_undervote = df.D_undervote.sum()
 
-        text = f"""
-<b>{title}</b><br>
-<i><b>{subtitle}</b></i><br>
-<br>
-<i>Republican Party Summary</i><br>
-The total Republican ballots cast<br>
-was {r_total}. The number of votes<br>
-for Republican candidates in this<br>
-contest was {r_candidate}. The number of<br>
-undervotes in this contest was {r_undervote}.
-<br><br>
-<i>Democratic Party Summary</i><br>
-The total Republican ballots cast<br>
-was {d_total}. The number of votes<br>
-for Republican candidates in this<br>
-contest was {d_candidate}. The number of<br>
-undervotes in this contest was {d_undervote}.
-"""
-        self.add_logo(fig, "https://johnbaileyforga.com/wp-content/uploads/2022/05/john-bailey-FINAL-logo.png",
-                      0.98, 0.98, 'right', 'top', 0.1, 0.1)
+        s = Template(config.description)
+        text = s.substitute(r_total=r_total, r_candidate=r_candidate, r_undervote=r_undervote,
+                            d_total=d_total, d_candidate=d_candidate, d_undervote=d_undervote)
+        self.add_logo(fig, config)
         self.add_watermark(fig, text)
         fig.update_layout(margin={"r": 30, "t": 30, "l": 30, "b": 30})
         return fig
 
-    def get_le_30_choropleth(self, year, drop=None, combine=None, title=None, subtitle=None):
-        df = self.demographics[['precinct_id', 'year_of_birth']]
-        df = df.assign(le_30=df.year_of_birth >= year - 30)
-        df = df.groupby(['precinct_id', 'le_30'], as_index=False).size()
-        df = df.pivot(index='precinct_id', columns='le_30', values='size')
+    def generation_summary(self, df, config):
+        df = df.assign(gen=categorize_age(df.year_of_birth)).drop(columns=['year_of_birth'])
+        df = df.groupby(['precinct_name', 'gen'], as_index=False).size()
+        df = df.pivot(index='precinct_name', columns='gen', values='size')
+        df.columns.name = None
+        df = self.combiner(df, config)
+        df = df.assign(t=df.S + df.B + df.GX + df.M + df.GZ)
+        df = df.assign(S=df.S / df.t * 100,
+                       B=df.B / df.t * 100,
+                       GX=df.GX / df.t * 100,
+                       M=df.M / df.t * 100,
+                       GZ=df.GZ / df.t * 100)
+        return df
 
-        print(df)
+    def race_summary(self, df, config):
+        df = df.groupby(['precinct_name', 'race_id'], as_index=False).size()
+        df = df.pivot(index='precinct_name', columns='race_id', values='size')
+        df.columns.name = None
+        df = self.combiner(df, config)
+        df = df.assign(t=df.WH + df.BH + df.HP + df.AI + df.AP + df.OT + df.U)
+        df = df.assign(WH=df.WH / df.t * 100,
+                       BH=df.BH / df.t * 100,
+                       HP=df.HP / df.t * 100,
+                       AI=df.AI / df.t * 100,
+                       AP=df.AP / df.t * 100,
+                       OT=df.OT / df.t * 100,
+                       U=df.U / df.t * 100)
+        return df
 
-    #     district_vtd_map = self.district_vtd_map
-    #     gdf = district_vtd_map.merge(df, on='precinct_name', how='inner')
-    #     gj = json.loads(gdf.to_json())
-    #     center = self.centroid(gdf).iloc[0]
-    #     fig = px.choropleth_mapbox(
-    #         gdf,
-    #         geojson=gj,
-    #         color='r_affinity',
-    #         locations='vtd_id',
-    #         featureidkey="properties.vtd_id",
-    #         center={"lat": center.y, "lon": center.x},
-    #         opacity=0.5,
-    #         mapbox_style="open-street-map", zoom=12,
-    #         labels={'precinct_name': 'Precinct Name',
-    #                 'r_affinity': 'Republican<br>Party Affinity',
-    #                 'R': 'Republican Votes',
-    #                 'D': 'Democratic Votes',
-    #                 'R_undervote': 'Republican Primary Under Votes',
-    #                 'D_undervote': 'Democratic Primary Under Votes',
-    #                 },
-    #         hover_data={'precinct_name': True,
-    #                     'r_affinity': ':.1f',
-    #                     'R': True,
-    #                     'D': True,
-    #                     'R_undervote': True,
-    #                     'D_undervote': True,
-    #                     'vtd_id': False},
-    #         color_continuous_scale='Plasma'
-    #     )
-    #
-    #     r_total = df.r_ballots.sum()
-    #     r_candidate = df.R.sum()
-    #     r_undervote = df.R_undervote.sum()
-    #     d_total = df.d_ballots.sum()
-    #     d_candidate = df.D.sum()
-    #     d_undervote = df.D_undervote.sum()
-    #
-    #     text = f"""
-    # <b>{title}</b><br>
-    # <i><b>{subtitle}</b></i><br>
-    # <br>
-    # <i>Republican Party Summary</i><br>
-    # The total Republican ballots cast<br>
-    # was {r_total}. The number of votes<br>
-    # for Republican candidates in this<br>
-    # contest was {r_candidate}. The number of<br>
-    # undervotes in this contest was {r_undervote}.
-    # <br><br>
-    # <i>Democratic Party Summary</i><br>
-    # The total Republican ballots cast<br>
-    # was {d_total}. The number of votes<br>
-    # for Republican candidates in this<br>
-    # contest was {d_candidate}. The number of<br>
-    # undervotes in this contest was {d_undervote}.
-    # """
-    #
-    #     extra_annotations = [
-    #         go.layout.Annotation(
-    #             text=text,
-    #             align='left',
-    #             showarrow=False,
-    #             x=0,
-    #             y=1,
-    #             yanchor="top",
-    #             xanchor="left",
-    #             bgcolor="white",
-    #             bordercolor="Black",
-    #             borderwidth=1,
-    #             borderpad=6,
-    #             font=dict(
-    #                 family="Times New Roman",
-    #                 size=12,
-    #                 color="gray"
-    #             )
-    #         )
-    #     ]
-    #     self.add_watermark(fig, annotations=extra_annotations)
-    #     fig.update_layout(margin={"r": 30, "t": 30, "l": 30, "b": 30})
-    #     return fig
+    def age_summary(self, df, config):
+        year = config.year
+        age = config.age
+        if config.above:
+            b_col = f'lt_{age}'
+            a_col = f'ge_{age}'
+            df = df.assign(b=df.year_of_birth <= year - age)
+        else:
+            b_col = f'gt_{age}'
+            a_col = f'le_{age}'
+            df = df.assign(b=df.year_of_birth >= year - age)
+        df = df.groupby(['precinct_name', 'b'], as_index=False).size()
+        df = df.pivot(index='precinct_name', columns='b', values='size')
+        df.columns.name = None
+        df = df.rename(columns={False: b_col, True: a_col})
+        df = self.combiner(df, config)
+        df = df.assign(t=df[a_col] + df[b_col])
+        df = df.assign(r=df[a_col] / df.t * 100)
+        return df
+
+    def get_demographics_choropleth(self, config_path):
+        config = DistrictMapConfig(config_path)
+        df = self.demographics
+        df_age = self.age_summary(df, config)
+        df_gen = self.generation_summary(df, config).drop(columns=['t'])
+        df_race = self.race_summary(df, config).drop(columns=['t'])
+        district_vtd_map = self.district_vtd_map
+        gdf = district_vtd_map.merge(df_age, on='precinct_name', how='inner')
+        gdf = gdf.merge(df_race, on='precinct_name', how='inner')
+        gdf = gdf.merge(df_gen, on='precinct_name', how='inner')
+        gj = json.loads(gdf.to_json())
+        center = self.centroid(gdf).iloc[0]
+        fig = px.choropleth_mapbox(
+            gdf,
+            geojson=gj,
+            color='r',
+            locations='vtd_id',
+            featureidkey="properties.vtd_id",
+            center={"lat": center.y, "lon": center.x},
+            opacity=0.5,
+            mapbox_style="open-street-map", zoom=12,
+            labels=config.labels,
+            hover_data=config.hover_data,
+            color_continuous_scale='Plasma'
+        )
+        self.add_logo(fig, config)
+        self.add_watermark(fig, config.description)
+        fig.update_layout(margin={"r": 30, "t": 30, "l": 30, "b": 30})
+        return fig
 
     def check_vtd_precinct(self, election_date):
         vtd_names = set(self.district_vtd_map[['precinct_name']].precinct_name.unique())

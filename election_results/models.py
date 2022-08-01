@@ -151,6 +151,17 @@ class ElectionResultManagerBase:
 
 
 class DetailManager(models.Manager, ElectionResultManagerBase):
+    def get_results(self, category, district, date):
+        if isinstance(date, str):
+            date = datetime.strptime(date, '%Y-%m-%d')
+        mappings = ContestCategoryMap.objects.filter(contest_category__category=category,
+                                                     contest_category__subcategory=district,
+                                                     detail__election_date=date)
+        return [x.detail for x in mappings]
+
+    def party_filter(self, details, party):
+        return list(filter(lambda d: d.party == party, details))
+
     # -------------------------------------------------------------------------
     # Ingest and Update Methods
     # -------------------------------------------------------------------------
@@ -203,6 +214,20 @@ class Detail(models.Model):
 
     objects = DetailManager()
 
+    @property
+    def as_record(self):
+        return {
+            'election_date': self.election_date,
+            'county_code': self.county_code,
+            'contest': self.contest,
+            'choice': self.choice,
+            'party': self.party,
+            'is_question': self.is_question,
+            'precinct_name': self.precinct_name,
+            'vote_type': self.vote_type,
+            'votes': self.votes,
+        }
+
     class Meta:
         indexes = [
             models.Index(fields=('county_code', 'election_date', 'contest_id')),
@@ -227,7 +252,7 @@ class OverUnderVoteManager(models.Manager, ElectionResultManagerBase):
         election_date = er.election_date
         county_name = er.county
         county_code = cd[cd.county_name == county_name].county_code.iloc[0]
-        election_results = Detail.objects.filter(election_date=election_date, county_code=county_code).\
+        election_results = Detail.objects.filter(election_date=election_date, county_code=county_code). \
             distinct('contest')
         return [x.contest for x in election_results]
 
@@ -251,6 +276,16 @@ class OverUnderVote(models.Model):
     undervotes = models.IntegerField()
 
     objects = OverUnderVoteManager()
+
+    @property
+    def as_record(self):
+        return {
+            'election_date': self.election_date,
+            'county_code': self.county_code,
+            'contest': self.contest,
+            'overvotes': self.overvotes,
+            'undervotes': self.undervotes,
+        }
 
 
 class ElectionResults(models.Model):
