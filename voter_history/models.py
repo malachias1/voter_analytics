@@ -1,20 +1,10 @@
 from django.db import models
-from data.voterdb import VoterDb
 from data.pathes import Pathes
-from psycopg2.extras import execute_values
 from pathlib import Path
 import pandas as pd
 
 
 class VotingHistoryManager(models.Manager):
-    @property
-    def db(self):
-        try:
-            return self.db_
-        except AttributeError:
-            self.db_ = VoterDb()
-        return self.db_
-
     def dates(self):
         return [x.h_date for x in self.distinct('h_date')]
 
@@ -29,6 +19,10 @@ class VotingHistoryManager(models.Manager):
         return pd.DataFrame.from_records(results, columns=['voter_id', 'date', 'type',
                                                            'party', 'absentee',
                                                            'provisional', 'supplemental'])
+
+    def get_for(self, election_date, voter_ids):
+        h_date = election_date.strftime('%Y%m%d')
+        return pd.DataFrame.from_records([x.as_record for x in self.filter(h_date=h_date, voter_id__in=voter_ids)])
 
     # -------------------------------------------------------------------------
     # Ingest and Update Methods
@@ -54,13 +48,6 @@ class VotingHistoryManager(models.Manager):
                  'supplemental': bool
                  }
 
-    def delete_year(self, year):
-        with self.db.con:
-            with self.db.cursor() as cur:
-                cur.execute(f"""
-                    delete from voter_history where h_year = {year}
-                """)
-
     def read_csv(self, year, root_dir=None, alt_dir=None):
         pathes = Pathes(root_dir)
         if alt_dir is not None:
@@ -74,17 +61,23 @@ class VotingHistoryManager(models.Manager):
         return df
 
     def ingest_year(self, year, root_dir=None, alt_dir=None):
-        self.delete_year(year)
+        self.filter(h_year=year).delete()
         df = self.read_csv(year, root_dir=root_dir, alt_dir=alt_dir)
-        with self.db.con:
-            with self.db.cursor() as cur:
-                execute_values(cur, f"""
-                      insert into voter_history (voter_id, h_year, h_date, type, party, 
-                        county_code, absentee, provisional, supplemental)
-                      values %s
-                    """, df[['voter_id', 'year', 'date',
-                             'type', 'party', 'county_code',
-                             'absentee', 'provisional', 'supplemental']].to_records(index=False))
+        records = []
+        for i in df.index:
+            row = df.loc[i]
+            records.append(VoterHistory(
+                voter_id=row.voter_id,
+                h_year=row.h_year,
+                h_date=row.h_date,
+                type=row.type,
+                party=row.party,
+                county_code=row.county_code,
+                absentee=row.absentee,
+                provisional=row.provisional,
+                supplemental=row.supplemental
+            ))
+        VoterHistory.objects.bulk_create(records, batch_size=10000)
 
 
 class VoterHistory(models.Model):
@@ -99,6 +92,20 @@ class VoterHistory(models.Model):
     supplemental = models.BooleanField()
 
     objects = VotingHistoryManager()
+
+    @property
+    def as_record(self):
+        return {
+            'voter_id': self.voter_id,
+            'h_year': self.h_year,
+            'h_date': self.h_date,
+            'type': self.type,
+            'party': self.party,
+            'county_code': self.county_code,
+            'absentee': self.absentee,
+            'provisional': self.provisional,
+            'supplemental': self.supplemental,
+        }
 
     class Meta:
         indexes = [
