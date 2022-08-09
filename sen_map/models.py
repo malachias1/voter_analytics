@@ -1,21 +1,19 @@
 from core.models import DistrictMapModel, DistrictMapModelManager
 from vtd_map.models import VtdMapMixin
-from analytics.models import VoterSen
 from county_map.models import CountyMap
+from voter.models import Voter
+from county.models import County
+import geopandas as gpd
 
 
 class SenMapManager(DistrictMapModelManager):
-    @classmethod
-    def get_districts_for_voters(cls, voter_ids):
-        return [o.sen for o in VoterSen.objects.filter(voter_id__in=voter_ids)]
-
-    def get_maps(self, counties, **kwargs):
-        return super().get_maps(counties, map_cls=VoterSen)
-
     def get_county_choropleth(self, county_code):
         cm = CountyMap.objects.get(county_code=county_code)
-        return cm.get_district_choropleth(self.get_maps(county_code),
-                                          labels={'district': "State Senate District"})
+        county = County.objects.get(county_code=county_code)
+        districts = [x.cng for x in Voter.objects.filter(county=county).distinct('cng')]
+        gdf = gpd.GeoDataFrame([self.get(district=d).as_record for d in districts],
+                               crs=self.CRS_LAT_LON)
+        return cm.get_district_choropleth(gdf, labels={'district': "State Senate District"})
 
 
 class SenMap(VtdMapMixin, DistrictMapModel):
@@ -23,7 +21,9 @@ class SenMap(VtdMapMixin, DistrictMapModel):
 
     @property
     def voters(self):
-        return [v.voter_id for v in VoterSen.objects.filter(sen=self.district)]
+        if self.edition is None:
+            raise AttributeError('edition not set!')
+        return list(Voter.objects.filter(edition=self.edition, sen=self.district, status='A'))
 
     class Meta:
         managed = False
