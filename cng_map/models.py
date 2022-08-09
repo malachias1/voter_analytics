@@ -1,6 +1,5 @@
 from core.models import DistrictMapModel, DistrictMapModelManager
 from vtd_map.models import VtdMapMixin
-from county_map.models import CountyMap
 from voter.models import Voter
 from county.models import County
 import geopandas as gpd
@@ -8,12 +7,11 @@ import geopandas as gpd
 
 class CngMapManager(DistrictMapModelManager):
     def get_county_choropleth(self, county_code):
-        cm = CountyMap.objects.get(county_code=county_code)
         county = County.objects.get(county_code=county_code)
         districts = [x.cng for x in Voter.objects.filter(county=county).distinct('cng')]
         gdf = gpd.GeoDataFrame([self.get(district=d).as_record for d in districts],
                                crs=self.CRS_LAT_LON)
-        return cm.get_district_choropleth(gdf, labels={'district': "US House District"})
+        return county.get_district_choropleth(gdf, labels={'district': "US House District"})
 
 
 class CngMap(VtdMapMixin, DistrictMapModel):
