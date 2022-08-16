@@ -2,22 +2,25 @@ from selenium import webdriver
 from time import sleep
 import re
 from pathlib import Path
-from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
+from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
-import json
 from urllib import request
 from urllib.error import HTTPError
 
 
-class CountyElectionResultDownloader20220524:
+class CountyElectionResultDownloaderBase:
     def __init__(self, root_url):
         self.root_url = root_url
         profile = webdriver.FirefoxProfile()
         profile.set_preference('browser.helperApps.neverAsk.saveToDisk', 'text/csv')
-        profile.set_preference('download.default_directory', Path('../election_results_download').absolute())
+        profile.set_preference('download.default_directory', str(Path('../election_results_download').absolute()))
         self.driver = webdriver.Firefox(firefox_profile=profile)
         self.driver.implicitly_wait(10)
         self.root_window = None
+
+    @property
+    def date_suffix(self):
+        raise NotImplemented('date_suffix is not implemented!')
 
     def wait_for_complete(self):
         WebDriverWait(self.driver, 10).until(
@@ -25,6 +28,7 @@ class CountyElectionResultDownloader20220524:
 
     def build(self):
         county_pattern = re.compile(r'(.+//GA/)(\w+)/(\d+)/[?]v=(\d+)')
+        print(self.root_url)
         self.driver.get(self.root_url)
         self.wait_for_complete()
         county_results = []
@@ -48,7 +52,7 @@ class CountyElectionResultDownloader20220524:
             n1 = m.group(3)
             n2 = m.group(4)
             download_url = f'{base_url}{county}/{n1}/{n2}/reports/detailxml.zip'
-            local_file = Path('../election_results_download', f'{county}_2022_05_24.zip')
+            local_file = Path('../election_results_download', f'{county}_{self.date_suffix}.zip')
             if local_file.exists():
                 continue
             try:
@@ -59,4 +63,16 @@ class CountyElectionResultDownloader20220524:
                         fo.write(data)
             except HTTPError as e:
                 print(f'{str(e)} -- {str(local_file)}, {download_url}')
+
+
+class CountyElectionResultDownloader20220524(CountyElectionResultDownloaderBase):
+    @property
+    def date_suffix(self):
+        return '2022_05_24'
+
+
+class CountyElectionResultDownloader2021103(CountyElectionResultDownloaderBase):
+    @property
+    def date_suffix(self):
+        return '2020_11_03'
 
