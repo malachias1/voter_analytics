@@ -1,14 +1,15 @@
 from django.db import models
 import pandas as pd
-from county_details.models import CountyDetails
-from pathlib import Path
-import xml.etree.ElementTree as Et
-from dateutil import parser
 import re
 import json
 import zipfile
 import shutil
 from datetime import datetime
+
+from county.models import County
+from pathlib import Path
+import xml.etree.ElementTree as Et
+from dateutil import parser
 
 
 class ChoiceManager(models.Manager):
@@ -119,13 +120,13 @@ class ContestCategory(models.Model):
 
 
 class ContestCategoryMap(models.Model):
-    detail = models.ForeignKey('Detail', on_delete=models.CASCADE)
-    contest_category = models.ForeignKey('ContestCategory', on_delete=models.CASCADE)
+    detail = models.ForeignKey('election_results.Detail', on_delete=models.CASCADE)
+    contest_category = models.ForeignKey('election_results.ContestCategory', on_delete=models.CASCADE)
 
 
 class ElectionResultManagerBase:
     def ingest(self, path):
-        cd = CountyDetails.objects.details
+        cd = County.objects.as_geodataframe
         for f in Path(path).expanduser().iterdir():
             if f.suffix == '.zip':
                 extract_to = Path(f.parent, f'{f.stem}')
@@ -151,16 +152,14 @@ class ElectionResultManagerBase:
 
 
 class DetailManager(models.Manager, ElectionResultManagerBase):
-    def get_results(self, category, district, date):
+    @classmethod
+    def get_results(cls, category, district, date):
         if isinstance(date, str):
             date = datetime.strptime(date, '%Y-%m-%d')
         mappings = ContestCategoryMap.objects.filter(contest_category__category=category,
                                                      contest_category__subcategory=district,
                                                      detail__election_date=date)
-        return [x.detail for x in mappings]
-
-    def party_filter(self, details, party):
-        return list(filter(lambda d: d.party == party, details))
+        return pd.DataFrame.from_records([x.detail.as_record for x in mappings])
 
     # -------------------------------------------------------------------------
     # Ingest and Update Methods
@@ -177,7 +176,8 @@ class DetailManager(models.Manager, ElectionResultManagerBase):
     def con(self):
         return self.con
 
-    def build_bulk_objs(self, row):
+    @classmethod
+    def build_bulk_objs(cls, row):
         contest = Contest.objects.get(id=row.contest_id)
         choice = Choice.objects.get(id=row.choice_id)
         obj = Detail(election_date=row.election_date, county_code=row.county_code,
@@ -204,8 +204,8 @@ class DetailManager(models.Manager, ElectionResultManagerBase):
 class Detail(models.Model):
     election_date = models.DateField()
     county_code = models.CharField(max_length=3)
-    contest = models.ForeignKey('Contest', on_delete=models.CASCADE)
-    choice = models.ForeignKey('Choice', on_delete=models.CASCADE)
+    contest = models.ForeignKey('election_results.Contest', on_delete=models.CASCADE)
+    choice = models.ForeignKey('election_results.Choice', on_delete=models.CASCADE)
     party = models.CharField(max_length=2, blank=True, null=True)
     is_question = models.BooleanField()
     precinct_name = models.CharField(max_length=64)
@@ -223,6 +223,7 @@ class Detail(models.Model):
             'choice': self.choice,
             'party': self.party,
             'is_question': self.is_question,
+            'precinct_short_name': self.precinct_name,
             'precinct_name': self.precinct_name,
             'vote_type': self.vote_type,
             'votes': self.votes,
@@ -230,16 +231,26 @@ class Detail(models.Model):
 
     class Meta:
         indexes = [
+            models.Index(fields=('election_date',)),
             models.Index(fields=('county_code', 'election_date', 'contest_id')),
         ]
 
 
 class OverUnderVoteManager(models.Manager, ElectionResultManagerBase):
+    @classmethod
+    def get_for_contests(cls, contests):
+        return pd.DataFrame.from_records([ouv.as_record for ouv in OverUnderVote.objects.filter(contest__in=contests)])
+
+    # -------------------------------------------------------------------------
+    # Ingest and Update Methods
+    # -------------------------------------------------------------------------
+
     OVER_COL_NAMES = ['election_date', 'contest', 'county_name', 'precinct_name', 'overvotes']
     UNDER_COL_NAMES = ['election_date', 'contest', 'county_name', 'precinct_name', 'undervotes']
     COL_NAMES = ['election_date', 'contest', 'county_code', 'precinct_name', 'overvotes', 'undervotes']
 
-    def build_objs(self, row, contests):
+    @classmethod
+    def build_objs(cls, row, contests):
         contest = contests[row.contest]
         if any([x is None or pd.isna(x) for x in row]):
             print(row)
@@ -248,7 +259,8 @@ class OverUnderVoteManager(models.Manager, ElectionResultManagerBase):
                             overvotes=row.overvotes, undervotes=row.undervotes)
         return obj
 
-    def get_contests(self, er, cd):
+    @classmethod
+    def get_contests(cls, er, cd):
         election_date = er.election_date
         county_name = er.county
         county_code = cd[cd.county_name == county_name].county_code.iloc[0]
@@ -261,7 +273,7 @@ class OverUnderVoteManager(models.Manager, ElectionResultManagerBase):
         df1 = pd.DataFrame.from_records(er.overvotes, columns=self.OVER_COL_NAMES)
         df2 = pd.DataFrame.from_records(er.undervotes, columns=self.UNDER_COL_NAMES)
         df = df1.merge(df2, on=self.OVER_COL_NAMES[:-1], how='inner')
-        df = df.merge(CountyDetails.objects.details[['county_code', 'county_name']], on='county_name', how='inner')
+        df = df.merge(cd[['county_code', 'county_name']], on='county_name', how='inner')
         df = df[self.COL_NAMES]
         objs = df.apply(self.build_objs, axis=1, args=(contests,)).to_list()
         self.bulk_create(objs)
@@ -269,7 +281,7 @@ class OverUnderVoteManager(models.Manager, ElectionResultManagerBase):
 
 class OverUnderVote(models.Model):
     election_date = models.DateField()
-    contest = models.ForeignKey('Contest', on_delete=models.CASCADE)
+    contest = models.ForeignKey('election_results.Contest', on_delete=models.CASCADE)
     county_code = models.TextField()
     precinct_name = models.TextField()
     overvotes = models.IntegerField()
@@ -282,7 +294,9 @@ class OverUnderVote(models.Model):
         return {
             'election_date': self.election_date,
             'county_code': self.county_code,
-            'contest': self.contest,
+            'precinct_short_name': self.precinct_name,
+            'precinct_name': self.precinct_name,
+            'contest': self.contest.name,
             'overvotes': self.overvotes,
             'undervotes': self.undervotes,
         }
