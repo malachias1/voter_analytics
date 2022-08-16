@@ -1,6 +1,7 @@
 import json
 
-from voter.models import ListEditionManager, Voter
+from util.address_skills import AddressSkills
+from voter.models import Voter
 from util.addresses import StreetNameNormalizer
 from util.names import NameNormalizer
 import pandas as pd
@@ -79,7 +80,7 @@ class VoterMatch:
         if column_name is not None:
             raw_zipcode = self.df.at[i, column_name]
         # Skip rows that have a bad zipcode (not 12345, 12345-1234, 123451234)
-        zipcode, _ = ListEditionManager.zip_plus4(raw_zipcode)
+        zipcode, _ = AddressSkills.zip_plus4(raw_zipcode)
         if zipcode is None or zipcode == '':
             print(f'Row[{i + 1}]-ERROR: Invalid zip code format, "{self.get_zipcode(i)}"!',
                   file=self.log_fd)
@@ -330,7 +331,7 @@ class VoterMatch:
             self.set_state(i, 'Georgia')
             self.set_country(i, 'United States')
 
-            self.set_precinct_short_name(i, precinct_id)
+            self.set_precinct_short_name(i, precinct_short_name)
             self.set_hse(i, hse)
             self.set_sen(i, sen)
             self.set_cng(i, cng)
