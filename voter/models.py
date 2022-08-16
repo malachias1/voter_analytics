@@ -207,12 +207,12 @@ class ListEditionManager(models.Manager):
             start = end
             Voter.objects.filter(edition=cls.EDITION).delete()
             end = time.perf_counter()
-            print(f'load_state purge time: {end-start:.1f}.')
+            print(f'load_state purge time: {end - start:.1f}.')
 
             start = end
             cls.load_voters(df)
             end = time.perf_counter()
-            print(f'load_state load_voters time: {end-start:.1f}.')
+            print(f'load_state load_voters time: {end - start:.1f}.')
 
         start = end
         cls.VOTERS = {x.voter_id: x for x in Voter.objects.filter(edition=cls.EDITION)}
@@ -223,7 +223,7 @@ class ListEditionManager(models.Manager):
             start = end
             cls.load_other_jurisdictions(df)
             end = time.perf_counter()
-            print(f'load_state load_other_jurisdictions time: {end-start:.1f}.')
+            print(f'load_state load_other_jurisdictions time: {end - start:.1f}.')
 
         if mailing_addresses:
             start = end
@@ -456,9 +456,18 @@ class ListEdition(models.Model):
 
     objects = ListEditionManager()
 
+    @property
+    def general_election_year(self):
+        if self.date >= datetime.strptime('2022-5-24', '%Y-%m-%d').date():
+            return 2022
+        return 2020
+
+    def voters_for_county(self, county_code):
+        return Voter.objects.filter(edition=self, county__county_code=county_code)
+
 
 class MailingAddress(models.Model):
-    voter = models.ForeignKey('Voter', on_delete=models.CASCADE)
+    voter = models.ForeignKey('voter.Voter', on_delete=models.CASCADE, related_name="mailing_address_of")
     # PO Boxes don't have house numbers
     house_number = models.CharField(max_length=32, blank=True, null=True)
     street_name = models.CharField(max_length=128)
@@ -473,7 +482,7 @@ class MailingAddress(models.Model):
 
 
 class OtherJurisdictions(models.Model):
-    voter = models.ForeignKey('Voter', on_delete=models.CASCADE)
+    voter = models.ForeignKey('voter.Voter', on_delete=models.CASCADE)
     county = models.ForeignKey(County, on_delete=models.CASCADE)
     land_district = models.CharField(max_length=5, blank=True, null=True)
     land_lot = models.CharField(max_length=5, blank=True, null=True)
@@ -498,7 +507,7 @@ class ResidenceAddress(models.Model):
     # I need an address for every voter.
     # I need to also be able to capture
     # the fact that a voter has a bad address.
-    voter = models.ForeignKey('Voter', on_delete=models.CASCADE)
+    voter = models.ForeignKey('voter.Voter', on_delete=models.CASCADE, related_name="residence_address_of")
     house_number = models.CharField(max_length=32, blank=True, null=True)
     street_name = models.CharField(max_length=64, blank=True, null=True)
     apt_no = models.CharField(max_length=32, blank=True, null=True)
@@ -509,11 +518,12 @@ class ResidenceAddress(models.Model):
 
 
 class VoterManager(models.Manager):
-    pass
+    def active(self):
+        return self.filter(status='A')
 
 
 class Voter(models.Model):
-    edition = models.ForeignKey('ListEdition', on_delete=models.SET_NULL, blank=True, null=True)
+    edition = models.ForeignKey('voter.ListEdition', on_delete=models.SET_NULL, blank=True, null=True)
     voter_id = models.CharField(max_length=8)
     race_id = models.CharField(max_length=2)
     gender = models.CharField(max_length=1)
