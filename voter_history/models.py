@@ -22,7 +22,8 @@ class VotingHistoryManager(models.Manager):
 
     def get_for(self, election_date, voter_ids):
         h_date = election_date.strftime('%Y%m%d')
-        return pd.DataFrame.from_records([x.as_record for x in self.filter(h_date=h_date, voter_id__in=voter_ids)])
+        k = self.filter(h_date=h_date, voter_id__in=voter_ids)
+        return pd.DataFrame.from_records([x.as_record for x in k])
 
     # -------------------------------------------------------------------------
     # Ingest and Update Methods
