@@ -30,37 +30,37 @@ class TestPrecinctSegmentation(unittest.TestCase):
 
     def test_summarize_race(self):
         df = self.sut.demographics_df
-        df = df[df.precinct_id >= 0]
+        df = df[df.precinct_short_name >= 0]
         df1 = self.sut.summarize_race(df)
-        n_wh = df[(df.race_id == 'WH') & (df.precinct_id == 0)]
-        n_b = df[(df.race_id == 'B') & (df.precinct_id == 0)]
+        n_wh = df[(df.race_id == 'WH') & (df.precinct_short_name == 0)]
+        n_b = df[(df.race_id == 'B') & (df.precinct_short_name == 0)]
         self.assertEqual(len(n_wh.index), df1.WH[0])
 
     def test_summarize_segment(self):
         df = self.sut.demographics_df
-        df = df[df.precinct_id >= 0]
+        df = df[df.precinct_short_name >= 0]
         df1 = self.sut.summarize_segment(df)
-        n_wh_f_gx = df[(df.segment == 'WH_F_GX') & (df.precinct_id == 0)]
+        n_wh_f_gx = df[(df.segment == 'WH_F_GX') & (df.precinct_short_name == 0)]
         self.assertEqual(len(n_wh_f_gx.index), df1.WH_F_GX[0])
         self.assertEqual(2, df1.WH_F_GX[0])
 
     def test_segment_df(self):
         df = self.sut.demographics_df
-        df = df[df.precinct_id >= 0]
+        df = df[df.precinct_short_name >= 0]
         df_seg = self.sut.precinct_summary_df
-        n_wh_f_gx = df[(df.segment == 'WH_F_GX') & (df.precinct_id == 0)]
-        self.assertEqual(len(df.precinct_id.unique()), len(df_seg.index))
+        n_wh_f_gx = df[(df.segment == 'WH_F_GX') & (df.precinct_short_name == 0)]
+        self.assertEqual(len(df.precinct_short_name.unique()), len(df_seg.index))
         self.assertEqual(len(n_wh_f_gx.index), df_seg.WH_F_GX[0])
         self.assertEqual(2, df_seg.WH_F_GX[0])
-        n_wh = df[(df.race_id == 'WH') & (df.precinct_id == 0)]
+        n_wh = df[(df.race_id == 'WH') & (df.precinct_short_name == 0)]
         self.assertEqual(len(n_wh.index), df_seg.WH[0])
         self.assertEqual(0, df.isna().sum().sum())
 
     def test_total(self):
         df = self.sut.demographics_df
-        df = df[df.precinct_id >= 0]
+        df = df[df.precinct_short_name >= 0]
         df1 = self.sut.total(df)
-        n_p_o = df[(df.precinct_id == 0)]
+        n_p_o = df[(df.precinct_short_name == 0)]
         self.assertEqual(len(n_p_o.index), df1.total[0])
         self.assertEqual(2, df1.total[0])
 

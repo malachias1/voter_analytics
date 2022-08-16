@@ -1,11 +1,11 @@
 import pandas as pd
-from data.pathes import Pathes
-from data.voterdb import VoterDb
 from datetime import datetime, timedelta
 import time
+from voter_history.models import VoterHistory
+from voter.models import Voter
 
 
-class VoterSegmentation(Pathes):
+class VoterSegmentation:
     ELECTIONS = [
         {'date': '20201103', 'is_primary': False},
         {'date': '20181106', 'is_primary': False},
@@ -21,13 +21,14 @@ class VoterSegmentation(Pathes):
     THIRTY_DAYS = timedelta(30)
     MOST_RECENT_ELECTION_DATE = datetime.strptime('20220524', '%Y%m%d')
 
-    def __init__(self, root_dir, state='ga'):
-        super().__init__(root_dir, state)
-        self.db = VoterDb(root_dir, state)
+    def __init__(self, voters):
+        self.voters = voters
+        self.voter_ids = [v.voter_id for v in voters]  # works with voter ids for now
+        self.edition = voters[0].edition
 
     def history_for_election_date(self, election_date, is_primary):
         date = datetime.strptime(election_date, '%Y%m%d')
-        df = self.db.voter_history_for_date(date.year, date.month, date.day)
+        df = VoterHistory.objects.get_for(date, self.voter_ids)
         # Assume NaN means voter cast ballot in non-partisan ballot.
         # Party, for those that didn't vote is set to X.
         # Ensure the party, if NaN, is set to NP for primary and
@@ -48,17 +49,17 @@ class VoterSegmentation(Pathes):
             # Set party in general election to G
             df = df.assign(party='G')
 
-        df = df[['county_id', 'voter_id', 'date', 'type', 'party']]
+        df = df[['county_code', 'voter_id', 'type', 'party']]
         df = df.assign(date=date)
         return df
 
     def gather_history(self):
-        df = pd.DataFrame()
+        elections = []
         for election in self.ELECTIONS:
             election_date = election['date']
             is_primary = election['is_primary']
-            df = pd.concat([df, self.history_for_election_date(election_date, is_primary)])
-        return df
+            elections.append(self.history_for_election_date(election_date, is_primary))
+        return pd.concat(elections)
 
     @staticmethod
     def get_county_info(df):
@@ -69,7 +70,7 @@ class VoterSegmentation(Pathes):
         :param df: voter history
         :return: voter id and county
         """
-        return df[['voter_id', 'county_id', 'date']].sort_values('date') \
+        return df[['voter_id', 'county_code', 'date']].sort_values('date') \
             .drop_duplicates(['voter_id'], keep='last').drop(columns=['date']).reset_index(drop=True)
 
     @staticmethod
@@ -129,17 +130,13 @@ class VoterSegmentation(Pathes):
         30 days prior to election.
         :return: voter id and date added
         """
-        vs = self.db.voter_status[['voter_id', 'status', 'date_added']]
-        vs = vs[vs.status == 'A'].drop(columns=['status']).reset_index(drop=True)
-
-        # If date_added is blank assume is proceeds the earliest election.
-        # Lots of examples of date_added = 19000101 in voter list.
-        vs = vs.assign(date_added=vs.date_added.str.replace('^$', '19000101', regex=True))
-
+        voters = Voter.objects.active().filter(voter_id__in=self.voter_ids).distinct('voter_id')
+        records = [{'voter_id': v.voter_id, 'date_added': v.date_added} for v in voters]
+        df = pd.DataFrame.from_records(records)
         # Add 30 days to date added -- registration has to be far enough in
         # advance so person can vote. If the resulting date is
         # greater than election date then, voter can't cast ballot.
-        return vs.assign(date_added=pd.to_datetime(vs.date_added, format='%Y%m%d') + self.THIRTY_DAYS)
+        return df.assign(date_added=df.date_added + self.THIRTY_DAYS)
 
     @staticmethod
     def pivot(df, df_first_last, df_date_added):
@@ -192,11 +189,11 @@ class VoterSegmentation(Pathes):
     @staticmethod
     def add_county(df, df_county):
         columns = df.columns
-        columns = columns.insert(1, "county_id")
+        columns = columns.insert(1, "county_code")
         df = df.merge(df_county, on=['voter_id'], how='inner')
         return df[columns]
 
-    def history(self):
+    def history_summary(self):
         """
         Return a record for each voter with the voter's voting history,
         where each election is represented by an election date string
@@ -253,60 +250,6 @@ class VoterSegmentation(Pathes):
         print(f'Add County Time: {end - start:.1f}')
 
         return df
-
-    def rebuild_history(self):
-        # Gather history
-        start = time.perf_counter()
-        df = self.history()
-        end = time.perf_counter()
-        print(f'Total Gather History Time: {end - start:.1f}')
-        start = end
-
-        # Get cursor
-        cur = self.db.con.cursor()
-
-        # Drop table
-        drop_table_stmt = 'drop table if exists voter_history_summary'
-        cur.execute(drop_table_stmt)
-        end = time.perf_counter()
-        print(f'Drop Table Time: {end - start:.1f}')
-        start = end
-
-        # Construct table create statement -- election dates are unknown and then
-        # create table
-        election_dates = [f"'{x}'" + ' text' for x in list(df.columns)[2:]]
-        create_table_stmt = f"""
-            CREATE TABLE voter_history_summary
-            (
-                voter_id    text primary key,
-                county_code text not null,
-                {','.join(election_dates)}
-            )
-        """
-
-        cur.execute(create_table_stmt)
-        self.db.con.commit()
-        end = time.perf_counter()
-        print(f'Create Table Time: {end - start:.1f}')
-        start = end
-
-        # Construct insert statement then insert records
-        column_count = len(election_dates) + 2
-        insert_stmt = f"""
-        insert into voter_history_summary values ({','.join(['?'] * column_count)})
-        """
-        df.apply(lambda row: cur.execute(insert_stmt, [row[i] for i in range(0, column_count)]), axis=1)
-        self.db.con.commit()
-        end = time.perf_counter()
-        print(f'Insert History Time: {end - start:.1f}')
-        start = end
-
-        # Add a county code index
-        create_index_stmt = 'CREATE INDEX voter_history_summary_county_code_idx ON voter_history_summary (county_code)'
-        cur.execute(create_index_stmt)
-        self.db.con.commit()
-        end = time.perf_counter()
-        print(f'Create Index Time: {end - start:.1f}')
 
     @staticmethod
     def compute_ops(vhs):
@@ -366,61 +309,3 @@ class VoterSegmentation(Pathes):
         end_time = time.perf_counter()
         print(f'Reorder Time: {end_time - start:.1f}')
         return df
-
-    def rebuild_voter_score(self):
-        start = time.perf_counter()
-        score = self.score_voters(self.voter_history_summary())
-        end = time.perf_counter()
-        print(f'Score Voter Time: {end - start:.1f}')
-        # Get cursor
-        cur = self.db.con.cursor()
-
-        # Drop table
-        drop_voter_score_stmt = 'drop table if exists voter_score'
-        cur.execute(drop_voter_score_stmt)
-
-        # Construct table create statement and  create table
-        create_voter_score_stmt = f"""
-             CREATE TABLE voter_score
-             (
-                 voter_id    text primary key,
-                 county_code text not null,
-                 max_ballots_cast   integer not null,
-                 ballots_cast  integer not null,
-                 gn_max integer not null,
-                 pn_max integer not null,
-                 gn integer not null,
-                 rn integer not null,
-                 dn integer not null,
-                 gr real,
-                 pr real,
-                 ra real
-             )
-         """
-
-        cur.execute(create_voter_score_stmt)
-        self.db.con.commit()
-
-        # Construct insert statement then insert records
-        insert_stmt = f"""
-         insert into voter_score values (?,?,?,?,?,?,?,?,?,?,?,?)
-         """
-        start = time.perf_counter()
-        score.apply(lambda row: cur.execute(insert_stmt, [row[i] for i in range(0, 12)]), axis=1)
-        self.db.con.commit()
-        end = time.perf_counter()
-        print(f'Insert Score Time: {end - start:.1f}')
-        start = end
-
-        # Add a county code index
-        create_index_stmt = 'CREATE INDEX voter_score_county_code_idx ON voter_score (county_code)'
-        cur.execute(create_index_stmt)
-        self.db.con.commit()
-        end = time.perf_counter()
-        print(f'Create Index Time: {end - start:.1f}')
-
-    def voter_history_summary(self, limit=None):
-        return self.db.get_voter_history_summary(limit=limit)
-
-    def voter_score(self):
-        return self.db.get_voter_score()
