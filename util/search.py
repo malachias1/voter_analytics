@@ -1,7 +1,6 @@
 import json
 
-from data.utils import zip_plus4
-from data.voter_details import VoterDetails
+from voter.models import ListEditionManager, Voter
 from util.addresses import StreetNameNormalizer
 from util.names import NameNormalizer
 import pandas as pd
@@ -13,8 +12,9 @@ class VoterMatch:
     def __init__(self, column_map_path=None):
         self.sn = StreetNameNormalizer()
         self.nn = NameNormalizer()
-        self.vd = VoterDetails()
         self.df = None
+        self.log_fd = None
+
         if column_map_path is not None:
             self.column_map_path = Path(column_map_path)
             try:
@@ -45,6 +45,11 @@ class VoterMatch:
     def get_house_number(self, i):
         street_address = self.get_street_address(i)
         house_number, _ = self.sn.street_address_split(street_address)
+        # Skip rows that have street address with no house number
+        if house_number is None:
+            print(f'Row[{i + 1}]-ERROR: Street address, "{self.get_street_address(i)}", has no house number!',
+                  file=self.log_fd)
+            raise ValueError
         return house_number
 
     def get_apt_no(self, i):
@@ -69,14 +74,17 @@ class VoterMatch:
             return None
 
     def get_zipcode(self, i):
+        raw_zipcode = None
         column_name = self.get_column_name_mapping("zipcode")
         if column_name is not None:
-            return self.df.at[i, column_name]
-        else:
-            return None
-
-    def get_zipcode_plus4(self, i):
-        return zip_plus4(self.get_zipcode(i))
+            raw_zipcode = self.df.at[i, column_name]
+        # Skip rows that have a bad zipcode (not 12345, 12345-1234, 123451234)
+        zipcode, _ = ListEditionManager.zip_plus4(raw_zipcode)
+        if zipcode is None or zipcode == '':
+            print(f'Row[{i + 1}]-ERROR: Invalid zip code format, "{self.get_zipcode(i)}"!',
+                  file=self.log_fd)
+            raise ValueError
+        return zipcode
 
     def get_country(self, i):
         column_name = self.get_column_name_mapping("country")
@@ -106,8 +114,8 @@ class VoterMatch:
         else:
             return None
 
-    def get_precinct_id(self, i):
-        column_name = self.get_column_name_mapping("precinct_id")
+    def get_precinct_short_name(self, i):
+        column_name = self.get_column_name_mapping("precinct_short_name")
         if column_name is not None:
             return self.df.at[i, column_name]
         else:
@@ -200,8 +208,8 @@ class VoterMatch:
         if column_name is not None:
             self.df.at[i, column_name] = value.title()
 
-    def set_precinct_id(self, i, value):
-        column_name = self.get_column_name_mapping("precinct_id")
+    def set_precinct_short_name(self, i, value):
+        column_name = self.get_column_name_mapping("precinct_short_name")
         if column_name is not None:
             self.df.at[i, column_name] = value
 
@@ -254,94 +262,57 @@ class VoterMatch:
     def match_df(self, df, log_path):
         self.df = df
         if log_path is None:
-            self.match_with_log(sys.stderr)
+            self.log_fd = sys.stderr
+            self.match_with_log()
         else:
             with log_path.open('w') as fo:
-                self.match_with_log(fo)
+                self.log_fd = fo
+                self.match_with_log()
         return self.df
 
-    def match_with_log(self, fo):
+    def match_with_log(self):
         matched = 0
         for i in range(0, len(self.df)):
-            # Skip clearly unmatchable rows that are missing
-            # essential information
-            if not self.is_matchable(i):
-                print(f'Row[{i + 1}]-ERROR: Skipped, missing essential information!',
-                      file=fo)
+            try:
+                self.sanity_checks(i)
+                house_number = self.get_house_number(i)
+                zipcode = self.get_zipcode(i)
+            except ValueError:
                 continue
-            # Skip rows that contain names like "Bob and Kathy" or
-            # "Bob & Kathy"
-            if i == 51:
-                print(i)
-            if self.is_compound_name(i):
-                print(f'Row[{i + 1}]-ERROR: Name, "{self.get_contact_name(i)}" or "{self.get_first_name(i)}", '
-                      f'refers to more than one person!',
-                      file=fo)
-                continue
-            # Skip rows that have street address with no house number
-            house_number = self.get_house_number(i)
-            if house_number is None:
-                print(f'Row[{i + 1}]-ERROR: Street address, "{self.get_street_address(i)}", has no house number!',
-                      file=fo)
-                continue
-            # Skip rows that have a bad zipcode (not 12345, 12345-1234, 123451234)
-            zipcode, _ = self.get_zipcode_plus4(i)
-            if zipcode is None:
-                print(f'Row[{i + 1}]-ERROR: Invalid zip code format, "{self.get_zipcode(i)}"!',
-                      file=fo)
-                continue
-
             # Try first and last name fields first
             first_name = self.nn.normalize(self.get_first_name(i))[0]
             last_name = self.nn.normalize(self.get_last_name(i))[-1]
-            matches = self.vd.voter_search(first_name, last_name, house_number, zipcode)
-
-            if len(matches) == 0:
-                # well that didn't work
-                # try contact name.
-                # There should be one entry
-                names = self.nn.normalize(self.get_contact_name(i))
-                name = names[0].split()
-                first_name = name[0]
-                last_name = name[-1]
-                matches = self.vd.voter_search(first_name, last_name, house_number, zipcode)
-
-                if len(matches) == 0:
-                    # Still no joy, skip it.
+            try:
+                voter = self.search_with_first_last(i, house_number, zipcode)
+                if voter is None:
+                    voter = self.search_with_contact_name(i, house_number, zipcode)
+                if voter is None:
                     print(
                         f'Row[{i + 1}]-ERROR: Unable to find match for {first_name} {last_name} with zip code '
                         f'{zipcode} and house number {house_number}!',
-                        file=fo)
+                        file=self.log_fd)
                     continue
-            # Check for multiple matches
-            if len(matches) > 1:
-                print(
-                    f'Row[{i + 1}]-ERROR: Multiple matches for {first_name} {last_name} with zip code '
-                    f'{zipcode} and house number {house_number}!',
-                    file=fo)
+            except ValueError:
                 continue
             # One match. Yea! Update the record
-            voter_id = matches.voter_id[0]
-            last_name = matches.last_name[0]
-            first_name = matches.first_name[0]
+            voter_id = voter.voter_id
+            last_name = voter.last_name
+            first_name = voter.first_name
+            gender = voter.gender
 
             # get various address stuff
-            address = self.vd.get_residence_address(voter_id)
-            street_name = address.street_name[0]
-            apt_no = address.apt_no[0]
-            city = address.city[0]
-            zipcode = address.zipcode[0]
-            plus4 = address.plus4[0]
-
-            # get demographics
-            demographics = self.vd.get_demographics(voter_id)
-            gender = demographics.gender[0]
+            address = voter.residence_address_of.all().first()
+            street_name = address.street_name
+            apt_no = address.apt_no
+            city = address.city
+            zipcode = address.zipcode
+            plus4 = address.plus4
 
             # get various political districts
-            precinct_id = self.vd.get_precinct_id(voter_id)
-            cng = self.vd.get_cng(voter_id)
-            sen = self.vd.get_sen(voter_id)
-            hse = self.vd.get_hse(voter_id)
+            precinct_short_name = voter.precinct.precinct_short_name
+            cng = voter.cng
+            sen = voter.sen
+            hse = voter.hse
 
             # update row
             self.set_contact_name(i, first_name, last_name)
@@ -359,7 +330,7 @@ class VoterMatch:
             self.set_state(i, 'Georgia')
             self.set_country(i, 'United States')
 
-            self.set_precinct_id(i, precinct_id)
+            self.set_precinct_short_name(i, precinct_id)
             self.set_hse(i, hse)
             self.set_sen(i, sen)
             self.set_cng(i, cng)
@@ -367,8 +338,55 @@ class VoterMatch:
             print(
                 f'Row[{i + 1}]-: Successful match for {first_name} {last_name} with zip code '
                 f'{zipcode} and house number {house_number}!',
-                file=fo)
+                file=self.log_fd)
         print(
             f'\nRow Count: {len(self.df)}, Matched Row Count: {matched}, Match %: {matched / len(self.df):.2f}',
-            file=fo)
+            file=self.log_fd)
         return self.df
+
+    def sanity_checks(self, i):
+        # Skip clearly unmatchable rows that are missing
+        # essential information
+        if not self.is_matchable(i):
+            print(f'Row[{i + 1}]-ERROR: Skipped, missing essential information!',
+                  file=self.log_fd)
+            raise ValueError
+        # Skip rows that contain names like "Bob and Kathy" or
+        # "Bob & Kathy"
+        if self.is_compound_name(i):
+            print(f'Row[{i + 1}]-ERROR: Name, "{self.get_contact_name(i)}" or "{self.get_first_name(i)}", '
+                  f'refers to more than one person!',
+                  file=self.log_fd)
+            raise ValueError
+
+    def search(self, i, first_name, last_name, house_number, zipcode):
+        matches = []
+        for v in Voter.objects.filter(first_name=first_name, last_name=last_name):
+            for _ in v.residence_address_of.filter(house_number=house_number, zipcode=zipcode):
+                matches.append(v)
+        # If no matches try first name as middle name
+        if len(matches) == 0:
+            for v in Voter.objects.filter(middle_name=first_name, last_name=last_name):
+                for _ in v.residence_address_of.filter(house_number=house_number, zipcode=zipcode):
+                    matches.append(v)
+
+        # Check for multiple matches
+        if len(matches) > 1:
+            print(
+                f'Row[{i + 1}]-ERROR: Multiple matches for {first_name} {last_name} with zip code '
+                f'{zipcode} and house number {house_number}!',
+                file=self.log_fd)
+            raise ValueError
+        return matches[0] if len(matches) == 1 else None
+
+    def search_with_contact_name(self, i, house_number, zipcode):
+        names = self.nn.normalize(self.get_contact_name(i))
+        name = names[0].split()
+        first_name = name[0]
+        last_name = name[-1]
+        return self.search(i, first_name, last_name, house_number, zipcode)
+
+    def search_with_first_last(self, i, house_number, zipcode):
+        first_name = self.nn.normalize(self.get_first_name(i))[0]
+        last_name = self.nn.normalize(self.get_last_name(i))[-1]
+        return self.search(i, first_name, last_name, house_number, zipcode)
