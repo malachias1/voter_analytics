@@ -1,0 +1,46 @@
+{
+  "date": "2022-05-24",
+  "drop": [],
+  "combine": {
+    "RW22B": "RW22A",
+    "RW22C": "RW22A",
+    "SS01A": "SS01"
+  },
+  "contest_mappings": {
+    "DEM - STATE HOUSE DIST 51": "D_undervote",
+    "REP - STATE HOUSE DIST 51": "R_undervote"
+  },
+  "logo": {
+    "source": "https://novemberpathways.com/maps/hd51/logo.png",
+    "x": 0.98,
+    "y": 0.98,
+    "xanchor": "right",
+    "yanchor": "top",
+    "sizex": 0.1,
+    "sizey": 0.1
+  },
+  "labels": {
+    "precinct_short_name": "Precinct Name",
+    "r_affinity": "Republican Party Affinity",
+    "r_affinity1": "Republican<br>Party<br>Affinity",
+    "R": "Korman Votes",
+    "D": "Brumley+Panitch Votes",
+    "R_undervote": "Korman Undervotes",
+    "D_undervote": "Brumley+Panitch Undervotes"
+  },
+  "hover_data": {
+    "precinct_short_name": true,
+    "r_affinity": ":.1f",
+    "r_affinity1": false,
+    "R": true,
+    "D": true,
+    "R_undervote": true,
+    "D_undervote": true,
+    "pid": false
+  },
+  "description": [
+    "<b>5-24 Result Summary</b>",
+    "<i><b>State House District 51</b></i><br>",
+    "Created by <a href=\"https://novemberpathways.com\">NovemberPathways.com</a>"
+  ]
+}

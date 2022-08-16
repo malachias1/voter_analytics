@@ -1,0 +1,38 @@
+{
+  "color": "s_b_gx1",
+  "logo": {
+    "source": "https://novemberpathways.com/$logo_path",
+    "x": 0.98,
+    "y": 0.98,
+    "xanchor": "right",
+    "yanchor": "top",
+    "sizex": 0.1,
+    "sizey": 0.1
+  },
+  "labels": {
+    "precinct_short_name": "Precinct",
+    "WH": "White Population Count",
+    "BH": "Black Population Count",
+    "U": "Unspecified Race Population Count",
+    "hp_ai_ap_o": "Other Minority Population Count",
+    "s_b_gx": "Older Population Count",
+    "s_b_gx1": "Older<br>Population<br>Count",
+    "m_gz": "Younger Population Count"
+  },
+  "hover_data": {
+    "precinct_short_name": true,
+    "WH": true,
+    "BH": true,
+    "U": true,
+    "hp_ai_ap_o": true,
+    "s_b_gx": true,
+    "s_b_gx1": false,
+    "m_gz": true,
+    "pid": false
+  },
+  "description": [
+    "<b>Active Voter Demographic Summary</b>",
+    "<i><b>$subtitle</b></i><br>",
+    "Created by <a href=\"https://novemberpathways.com\">NovemberPathways.com</a>"
+  ]
+}

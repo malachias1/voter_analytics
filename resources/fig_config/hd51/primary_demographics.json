@@ -1,0 +1,63 @@
+{
+  "date": "2022-5-24",
+  "color": "total_rd1",
+  "drop": [],
+  "combine": {
+    "RW22B": "RW22A",
+    "RW22C": "RW22A",
+    "SS01A": "SS01"
+  },
+  "logo": {
+    "source": "https://novemberpathways.com/maps/hd51/logo.png",
+    "x": 0.98,
+    "y": 0.98,
+    "xanchor": "right",
+    "yanchor": "top",
+    "sizex": 0.1,
+    "sizey": 0.1
+  },
+  "labels": {
+    "total_rd": "Rep Voter Margin",
+    "total_rd1": "Republican<br>Voter<br>Margin",
+    "total_r": "<i>Rep Voters</i>",
+    "total_d": "Dem Voters",
+    "precinct_short_name": "Precinct",
+    "WH_r": "<i>Rep White Vote Count</i>",
+    "WH_d": "Dem White Vote Count",
+    "BH_r": "<i>Rep Black Vote Count</i>",
+    "BH_d": "Dem Black Vote Count",
+    "hp_ai_ap_o_r": "<i>Rep Other Minority Vote Count</i>",
+    "hp_ai_ap_o_d": "Dem Other Minority Vote Count",
+    "U_r": "<i>Rep Unspecified Race Vote Count</i>",
+    "U_d": "Dem Unspecified Race Vote Count",
+    "s_b_gx_r": "<i>Rep Older Vote Count</i>",
+    "s_b_gx_d": "Dem Older Vote Count",
+    "m_gz_r": "<i>Rep Younger Vote Count</i>",
+    "m_gz_d": "Dem Younger Vote Count"
+  },
+  "hover_data": {
+    "precinct_short_name": true,
+    "total_r": true,
+    "total_d": true,
+    "WH_r": true,
+    "WH_d": true,
+    "BH_r": true,
+    "BH_d": true,
+    "U_r": true,
+    "U_d": true,
+    "hp_ai_ap_o_r": true,
+    "hp_ai_ap_o_d": true,
+    "s_b_gx_r": true,
+    "s_b_gx_d": true,
+    "m_gz_r": true,
+    "m_gz_d": true,
+    "total_rd": false,
+    "total_rd1": false,
+    "pid": false
+  },
+  "description": [
+    "<b>Demographic 5-24 Turnout Summary</b>",
+    "<i><b>State House District 51</b></i><br>",
+    "Created by <a href=\"https://novemberpathways.com\">NovemberPathways.com</a>"
+  ]
+}

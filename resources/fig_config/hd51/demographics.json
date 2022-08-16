@@ -1,0 +1,11 @@
+{
+  "date": "2022-5-24",
+  "logo_path": "maps/hd51/logo.png",
+  "subtitle": "State House District 51",
+  "drop": [],
+  "combine": {
+    "RW22B": "RW22A",
+    "RW22C": "RW22A",
+    "SS01A": "SS01"
+  }
+}

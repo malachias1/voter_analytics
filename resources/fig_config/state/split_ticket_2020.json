@@ -1,0 +1,41 @@
+{
+  "contest_patterns": [
+    ["us_senate", "PERDUE.*[(]REP[)]", "us_senate", true],
+    ["us_house", "[(]REP[)]", "us_house", true],
+    ["ga_house", "[(]REP[)]", "ga_house", true],
+    ["ga_senate", "[(]REP[)]", "ga_senate", true],
+    ["president", "[(]REP[)]", "candidate1", false],
+    ["president", "[(]DEM[)]", "candidate2", false]
+  ],
+  "undervote_category": "president",
+  "undervote_column_name": "candidate1_undervote",
+  "date": "2020-11-03",
+  "hover_data": {
+    "county_name": true,
+    "max_diff": true,
+    "candidate1_undervote": true,
+    "candidate1": true,
+    "candidate2": true,
+    "margin": ":.1f",
+    "us_senate": true,
+    "us_house": true,
+    "ga_house": true,
+    "ga_senate": true,
+    "max_votes": true,
+    "county_code": false
+  },
+  "labels": {
+    "county_name": "County Name",
+    "max_diff": "Trump Performance vs. Estimated Max (votes)",
+    "candidate1_undervote": "President Under Vote Count",
+    "candidate1": "Former President Trump Tally",
+    "candidate2": "President Biden Tally",
+    "margin": "Trump Vote %",
+    "us_senate": "Aggregate US Senate (Perdue) Vote Tally",
+    "us_house": "Aggregate US House Vote Tally",
+    "ga_senate": "Aggregate State Senate Vote Tally",
+    "ga_house": "Aggregate State House Vote Tally",
+    "max_votes": "Observed Max Republican Vote"
+  },
+  "description": "<b>Demographics Summary</b><br><i><b>State House District 51</b></i><br><br>Precincts are shaded from blue to yellow<br>based on the percentage of active<br>voters 50 and over. Within<br>precincts, population percentages<br>are given for 50 and over, race<br>identification, and generation."
+}

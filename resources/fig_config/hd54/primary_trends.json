@@ -1,0 +1,41 @@
+{
+  "date": "2022-5-24",
+  "color": "s_b_gx",
+  "drop": [],
+  "combine": {
+    "RW03A": "RW03",
+    "RW21A": "RW21",
+    "RW22B": "RW22A",
+    "RW22C": "RW22A",
+    "SS01A": "SS01"
+  },
+  "logo": {
+    "source": "https://novemberpathways.com/maps/hd54/logo.png",
+    "x": 0.98,
+    "y": 1.125,
+    "xanchor": "right",
+    "yanchor": "top",
+    "sizex": 0.1,
+    "sizey": 0.1
+  },
+  "description": [
+    "<b>5-24 Demographic Result Summary</b>",
+    "<i><b>State House District 54</b></i><br>",
+    "Created by <a href:\"https://novemberpathways.com\">NovemberPathways.com</a>"
+  ],
+  "other": [
+    "The data underlying this chart is limited to those District 54 voters that",
+    "participated in the 5-24 primary. Each precinct in the district is located",
+    "along the horizontal axis based upon the percentage of the voters identifying",
+    "as White. Precincts are located on the vertical axis based upon the median age",
+    "of the voters.<br>",
+    "Precincts are shaded from blue to yellow based on the precinct's Republican",
+    "party affinity, i.e., the percentage by which primary voters favored the",
+    "Republican party. Blue signifies a stronger preference for Democratic party.",
+    "Yellow signifies a stronger preference for the Republican party.<br>",
+    "In general, younger, Minority voters lean left. Older, White voters lean right.",
+    "Moreover, younger, Minority voters are less likely to participate in a primary.",
+    "The general election will have a higher percentage of Millennial, Gen-Z, and",
+    "Minority voters.<br>"
+  ]
+}
