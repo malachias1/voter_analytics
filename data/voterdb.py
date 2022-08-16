@@ -318,7 +318,7 @@ class VoterDb:
         """
         Update precinct details for a county. Raise an
         error if multiple counties are present in df.
-        Purge precincts. Put colums in correct order.
+        Purge precinct_details. Put colums in correct order.
 
         :param df:
         :return:
