@@ -1,6 +1,6 @@
 import pandas as pd
 from django.db import models
-from core.models import BaseMapModel, BaseMap
+from core.base_fig import BaseMapModel, BaseMap
 import geopandas as gpd
 
 
@@ -23,7 +23,7 @@ class VtdMapManager(models.Manager, BaseMap):
 class VtdMap(BaseMapModel):
     id = models.IntegerField(primary_key=True)
     area = models.FloatField()
-    precinct_id = models.TextField()
+    precinct_short_name = models.TextField()
     precinct_name = models.TextField()
     county_code = models.TextField()
     county_fips = models.TextField()
@@ -38,7 +38,7 @@ class VtdMap(BaseMapModel):
         record = super().as_record
         record.update({'id': self.id,
                        'area': self.area,
-                       'precinct_id': self.precinct_id,
+                       'precinct_short_name': self.precinct_short_name,
                        'precinct_name': self.precinct_name,
                        'county_code': self.county_code,
                        'county_fips': self.county_fips,
