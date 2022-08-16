@@ -38,60 +38,43 @@ class HseMapTestCase(unittest.TestCase):
 
     def test_district_vtd_map(self):
         dmap = self.hd51.district_vtd_map
-        self.assertEqual(15, len(dmap.index))
-        self.assertIn('RW20', dmap.precinct_id.unique())
+        self.assertEqual(18, len(dmap.index))
+        self.assertIn('RW20', dmap.precinct_short_name.unique())
         self.assertEqual(1, len(dmap.county_code.unique()))
         self.assertIn('060', dmap.county_code.unique())
 
-    def test_county_vtd_map(self):
-        cmap = self.hd51.county_vtd_map
-        print(cmap.head())
-        self.assertEqual(383, len(cmap.index))
-        self.assertIn('RW20', cmap.precinct_id.unique())
+    def test_precinct_map(self):
+        cmap = self.hd51.precinct_map
+        self.assertEqual(18, len(cmap.index))
+        self.assertIn('RW20', cmap.precinct_short_name.unique())
         self.assertEqual(1, len(cmap.county_code.unique()))
         self.assertIn('060', cmap.county_code.unique())
 
     def test_get_election_result_details(self):
         results = self.hd51.get_election_result_details('2022-5-24')
         self.assertEqual(240, len(results.index))
-        self.assertIn('RW20', results.precinct_id.unique())
+        self.assertIn('RW20', results.precinct_short_name.unique())
         self.assertEqual(1, len(results.county_code.unique()))
         self.assertIn('060', results.county_code.unique())
 
     def test_get_party_tally(self):
-        config = PartyTallyMapConfig('../resources/map_config/hd51_party_tally.json')
+        config = PartyTallyMapConfig('../resources/fig_config/hd51/summary.json')
         tally = self.hd51.get_party_tally(config)
-        self.assertEqual(15, len(tally.index))
-        self.assertIn('RW20', tally.precinct_id.unique())
+        self.assertEqual(17, len(tally.index))
+        self.assertIn('RW20', tally.precinct_short_name.unique())
 
     def test_get_undervote(self):
-        config = PartyTallyMapConfig('../resources/map_config/hd51_party_tally.json')
+        config = PartyTallyMapConfig('../resources/fig_config/hd51/summary.json')
         uv = self.hd51.get_undervote(config)
-        self.assertEqual(15, len(uv.index))
-        self.assertIn('RW20', uv.precinct_id.unique())
-
-    def test_get_voter_history_demographics(self):
-        config = PartyTallyMapConfig('../resources/map_config/hd51_party_tally.json')
-        vhd = self.hd51.get_voter_history_demographics(config)
-        self.assertEqual(15, len(vhd.index))
-        print(vhd.precinct_id.unique())
-        self.assertIn('RW20', vhd.precinct_id.unique())
-
-    def test_generation_summary(self):
-        config = MapConfig('../resources/map_config/hd51_demographics.json')
-        d = self.hd51.demographics
-        print(d.precinct_id.unique())
-        gs = self.hd51.generation_summary(d, config)
-        self.assertEqual(15, len(gs.index))
-        self.assertIn('RW20', gs.precinct_id.unique())
-        print(gs)
+        self.assertEqual(17, len(uv.index))
+        self.assertIn('RW20', uv.precinct_short_name.unique())
 
     def test_get_demographics_choropleth(self):
         """
         Just make sure method runs without error.
         :return: None
         """
-        _ = self.hd51.get_demographics_choropleth('../resources/map_config/hd51_demographics.json')
+        _ = self.hd51.get_demographics_choropleth('../resources/fig_config/hd51/demographics.json')
 
     def test_check_vtd_precinct(self):
         """
@@ -105,8 +88,15 @@ class HseMapTestCase(unittest.TestCase):
          Just make sure method runs without error.
          :return: None
          """
-        _ = self.hd51.get_party_tally_choropleth('../resources/map_config/hd51_party_tally.json')
+        _ = self.hd51.get_party_tally_choropleth('../resources/fig_config/hd51/summary.json')
 
     def test_get_primary_demographics(self):
-        config = MapConfig('../resources/map_config/hd51_primary_demographics.json')
+        config = MapConfig('../resources/fig_config/hd51/primary_demographics.json')
         self.hd51.get_primary_demographics(config)
+
+    def test_get_vtd_choropleth(self):
+        """
+         Just make sure method runs without error.
+         :return: None
+         """
+        _ = self.hd51.get_vtd_choropleth('../resources/fig_config/hd51/precincts.json')

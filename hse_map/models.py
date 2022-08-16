@@ -1,31 +1,30 @@
 from core.models import DistrictMapModel, DistrictMapModelManager
-from vtd_map.models import VtdMapMixin
 from voter.models import Voter
-from county.models import County
+from precinct.models import PrecinctMapMixin
 import geopandas as gpd
 
 
 class HseMapManager(DistrictMapModelManager):
-    def get_county_choropleth(self, county_code):
-        county = County.objects.get(county_code=county_code)
-        districts = [x.cng for x in Voter.objects.filter(county=county).distinct('cng')]
-        gdf = gpd.GeoDataFrame([self.get(district=d).as_record for d in districts],
-                               crs=self.CRS_LAT_LON)
-        return county.get_district_choropleth(gdf, labels={'district': "State House District"})
+    @classmethod
+    def get_districts_in_county(cls, county):
+        return [x.cng for x in Voter.objects.filter(county=county).distinct('cng')]
+
+    def get_county_choropleth(self, precinct_edition, county):
+        county_map = county.map_of.first()
+        districts = self.get_districts_in_county(county)
+        gdf = gpd.GeoDataFrame([self.get(district=d).as_record for d in districts], crs=self.CRS_LAT_LON)
+        return county_map.get_district_choropleth(gdf, precinct_edition, labels={'district': "State House District"})
 
 
-class HseMap(VtdMapMixin, DistrictMapModel):
+class HseMap(PrecinctMapMixin, DistrictMapModel):
     objects = HseMapManager()
 
     @property
     def contest_category(self):
         return 'ga_house'
 
-    @property
-    def voters(self):
-        if self.edition is None:
-            raise AttributeError('edition not set!')
-        return list(Voter.objects.filter(edition=self.edition, hse=self.district, status='A'))
+    def get_voters_(self):
+        return Voter.objects.filter(edition=self.edition, hse=self.district, status='A')
 
     class Meta:
         managed = False
