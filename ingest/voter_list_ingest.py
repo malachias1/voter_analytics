@@ -109,10 +109,10 @@ class IngestVoterList(Pathes):
         """
         Precinct details are encompassed by a single table,
         precinct_details. Precincts are updated at the county
-        level. All county precincts are purged and then new
+        level. All county precinct_details are purged and then new
         precinct details are inserted.
 
-        :param county_code: the county in which precincts
+        :param county_code: the county in which precinct_details
         are to be updated
         :param df: a voter list with both address and precinct details
         :return:
