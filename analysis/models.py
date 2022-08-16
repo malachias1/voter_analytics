@@ -1,5 +1,4 @@
 import pandas as pd
-import psycopg
 
 from core.models import MapConfig
 import plotly.express as px
@@ -34,23 +33,23 @@ class PrimaryTrendsChart:
         df = self.build_hover_text(df)
         d_row = self.district_row(df)
         df = pd.concat([df, pd.DataFrame.from_records([d_row])])
-        df = df.assign(a1=df.a)[['precinct_id', 'total', 'a', 'pwh', 'age', 'a1', 'hover_text']]
+        df = df.assign(a1=df.a)[['precinct_short_name', 'total', 'a', 'pwh', 'age', 'a1', 'hover_text']]
 
         fig = px.scatter(df,
                          x="pwh",
                          y="age",
-                         text='precinct_id',
+                         text='precinct_short_name',
                          color="a1",
                          size='total',
                          # width=1280,
                          # height=720,
                          labels={
-                             'precinct_id': 'Precinct',
+                             'precinct_short_name': 'Precinct',
                              'total': 'Total Primary Participants',
                              'a': 'Republican Candidate % of Votes',
                              'pwh': "% Identifying as White",
                              'age': 'Median Age',
-                             'a1': 'Republican Candidate<br>% of Votes'
+                             'a1': 'Republican<br>Candidate<br>% of Votes'
                          }
                          )
 
@@ -61,6 +60,8 @@ class PrimaryTrendsChart:
         )
 
         fig.update_layout(
+            paper_bgcolor="black",
+            plot_bgcolor="black",
             font=dict(
                 family="Times New Roman",
                 size=10,
@@ -82,7 +83,7 @@ class PrimaryTrendsChart:
         total = (df.total_r.sum() + df.total_d.sum())
         a = df.total_r.sum() / total * 100
         return {
-            'precinct_id': 'District Overall',
+            'precinct_short_name': 'District Overall',
             # Reduce the size, so the rest of the dots aren't tiny
             'total': total/len(df.index)*2,
             'a': a,
@@ -105,7 +106,7 @@ class PrimaryTrendsChart:
         s = Template('<br>'.join(text))
         hover_text = []
         for i in df.index:
-            ht = s.substitute(name=df.loc[i].precinct_id,
+            ht = s.substitute(name=df.loc[i].precinct_short_name,
                               total=df.loc[i].total,
                               a=f'{df.loc[i].a:.1f}',
                               pwh=f'{df.loc[i].pwh:.1f}',
@@ -152,7 +153,7 @@ class PrimaryTrendsChart:
             align='left',
             showarrow=False,
             x=0.01,
-            y=1.125,
+            y=0.98,
             xref='paper',
             yref='paper',
             yanchor="top",
