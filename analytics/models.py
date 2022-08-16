@@ -7,15 +7,6 @@
 from django.db import models
 
 
-class AddressVoter(models.Model):
-    voter_id = models.TextField(primary_key=True)
-    address_id = models.IntegerField()
-
-    class Meta:
-        managed = False
-        db_table = 'address_voter'
-
-
 class BlockGroupGeometry(models.Model):
     geoid = models.TextField(db_column='GEOID', primary_key=True)  # Field name made lowercase.
     state = models.TextField()
@@ -58,33 +49,6 @@ class Children(models.Model):
         managed = False
         db_table = 'children'
 
-
-# class EducationalAttainment(models.Model):
-#     geoid = models.TextField(db_column='GEOID', primary_key=True)  # Field name made lowercase.
-#     state = models.TextField()
-#     county = models.TextField()
-#     tract = models.TextField()
-#     block_group = models.TextField()
-    # total = models.FloatField(db_column='educational_attainment_total', blank=True, null=True)
-    # regular_high_school_diploma = models.FloatField(db_column='educational_attainment_regular_high_school_diploma', blank=True, null=True)
-    # ged_or_alternative_credential = models.FloatField(db_column='educational_attainment_ged_or_alternative_credential', blank=True, null=True)
-    # some_college_less_than_1_year = models.FloatField(db_column='educational_attainment_some_college_less_than_1_year', blank=True, null=True)
-    # some_college_1_or_more_years_no_degree = models.FloatField(db_column='educational_attainment_some_college_1_or_more_years_no_degree', blank=True, null=True)
-    # associates_degree = models.FloatField(db_column='educational_attainment_associates_degree', blank=True, null=True)
-    # bachelors_degree = models.FloatField(db_column='educational_attainment_bachelors_degree', blank=True, null=True)
-    # masters_degree = models.FloatField(db_column='educational_attainment_masters_degree', blank=True, null=True)
-    # professional_school_degree = models.FloatField(db_column='educational_attainment_professional_school_degree', blank=True, null=True)
-    # doctorate_degree = models.FloatField(db_column='educational_attainment_doctorate_degree', blank=True, null=True)
-    # total_moe = models.FloatField(db_column='educational_attainment_total_moe', blank=True, null=True)
-    # regular_high_school_diploma_moe = models.FloatField(db_column='educational_attainment_regular_high_school_diploma_moe', blank=True, null=True)
-    # ged_or_alternative_credential_moe = models.FloatField(db_column='educational_attainment_ged_or_alternative_credential_moe', blank=True, null=True)
-    # some_college_less_than_1_year_moe = models.FloatField(db_column='educational_attainment_some_college_less_than_1_year_moe', blank=True, null=True)
-    # some_college_1_or_more_years_no_degree_moe = models.FloatField(db_column='educational_attainment_some_college_1_or_more_years_no_degree_moe', blank=True, null=True)
-    # associates_degree_moe = models.FloatField(db_column='educational_attainment_associates_degree_moe', blank=True, null=True)
-    # bachelors_degree_moe = models.FloatField(db_column='educational_attainment_bachelors_degree_moe', blank=True, null=True)
-    # masters_degree_moe = models.FloatField(db_column='educational_attainment_masters_degree_moe', blank=True, null=True)
-    # professional_school_degree_moe = models.FloatField(db_column='educational_attainment_professional_school_degree_moe', blank=True, null=True)
-    # doctorate_degree_moe = models.FloatField(db_column='educational_attainment_doctorate_degree_moe', blank=True, null=True)
 
 class EducationalAttainment(models.Model):
         geoid = models.TextField(db_column='GEOID', primary_key=True)  # Field name made lowercase.
@@ -133,33 +97,6 @@ class EducationalAttainment(models.Model):
             db_table = 'educational_attainment'
 
 
-class MailingAddress(models.Model):
-    address_id = models.IntegerField(primary_key=True)
-    house_number = models.TextField()
-    street_name = models.TextField()
-    apt_no = models.TextField(blank=True, null=True)
-    city = models.TextField()
-    state = models.TextField()
-    zipcode = models.TextField()
-    plus4 = models.TextField(blank=True, null=True)
-    address_line2 = models.TextField(blank=True, null=True)
-    address_line3 = models.TextField(blank=True, null=True)
-    country = models.TextField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'mailing_address'
-
-
-class MailingAddressVoter(models.Model):
-    voter_id = models.TextField(primary_key=True)
-    address_id = models.IntegerField()
-
-    class Meta:
-        managed = False
-        db_table = 'mailing_address_voter'
-
-
 class MedianHouseHoldIncome(models.Model):
     geoid = models.TextField(db_column='GEOID', primary_key=True)  # Field name made lowercase.
     state = models.TextField()
@@ -172,26 +109,6 @@ class MedianHouseHoldIncome(models.Model):
     class Meta:
         managed = False
         db_table = 'median_house_hold_income'
-
-
-class PrecinctDetails(models.Model):
-    id = models.IntegerField(primary_key=True)
-    county_code = models.TextField()
-    precinct_id = models.TextField()
-    precinct_name = models.TextField(blank=True, null=True)
-
-    @property
-    def as_record(self):
-        return {
-            'id': self.id,
-            'county_code': self.county_code,
-            'precinct_id': self.precinct_id,
-            'precinct_name': self.precinct_name,
-        }
-
-    class Meta:
-        managed = False
-        db_table = 'precinct_details'
 
 
 class PrecinctSummary(models.Model):
@@ -285,33 +202,6 @@ class PrecinctSummary(models.Model):
         db_table = 'precinct_summary'
 
 
-class ResidenceAddress(models.Model):
-    address_id = models.IntegerField(primary_key=True)
-    county_code = models.TextField()
-    house_number = models.TextField()
-    street_name = models.TextField()
-    apt_no = models.TextField(blank=True, null=True)
-    city = models.TextField()
-    state = models.TextField()
-    zipcode = models.TextField()
-    plus4 = models.TextField(blank=True, null=True)
-    lat = models.FloatField(blank=True, null=True)
-    lon = models.FloatField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'residence_address'
-
-
-class VoterCng(models.Model):
-    voter_id = models.TextField(primary_key=True)
-    cng = models.TextField()
-
-    class Meta:
-        managed = False
-        db_table = 'voter_cng'
-
-
 class VoterHistorySummary(models.Model):
     voter_id = models.TextField(primary_key=True)
     county_code = models.TextField()
@@ -328,28 +218,6 @@ class VoterHistorySummary(models.Model):
     class Meta:
         managed = False
         db_table = 'voter_history_summary'
-
-
-class VoterHse(models.Model):
-    voter_id = models.TextField(primary_key=True)
-    hse = models.TextField()
-
-    class Meta:
-        managed = False
-        db_table = 'voter_hse'
-
-
-class VoterName(models.Model):
-    voter_id = models.TextField(primary_key=True)
-    last_name = models.TextField()
-    first_name = models.TextField()
-    middle_name = models.TextField(blank=True, null=True)
-    name_suffix = models.TextField(blank=True, null=True)
-    name_title = models.TextField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'voter_name'
 
 
 class VoterPrecinct(models.Model):
@@ -399,15 +267,6 @@ class VoterSearch(models.Model):
     class Meta:
         managed = False
         db_table = 'voter_search'
-
-
-class VoterSen(models.Model):
-    voter_id = models.TextField(primary_key=True)
-    sen = models.TextField()
-
-    class Meta:
-        managed = False
-        db_table = 'voter_sen'
 
 
 class WorkTravelTime(models.Model):
