@@ -1,13 +1,13 @@
 from django.db import models
-from core.models import BaseMapModel, BaseMapModelManager
-from county_details.models import CountyDetails
+from core.base_fig import BaseMapModel, BaseMapModelManager
+from county.models import County
 
 
 class BlockGroupMapManager(BaseMapModelManager):
     def get_maps(self, counties):
         if isinstance(counties, str):
             counties = (counties,)
-        county_fips = [x.county_fips for x in CountyDetails.objects.filter(county_code__in=counties)]
+        county_fips = [x.county_fips for x in County.objects.filter(county_code__in=counties)]
         self.filter(county_fips__in=county_fips)
 
 
