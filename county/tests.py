@@ -5,8 +5,7 @@ import os
 os.environ['DJANGO_SETTINGS_MODULE'] = 'dashboard.settings'
 django.setup()
 
-from county.models import County
-from shapely.geometry import MultiPolygon
+from county.models import County, CountyMap
 
 
 class CountyTestCase(unittest.TestCase):
@@ -18,12 +17,30 @@ class CountyTestCase(unittest.TestCase):
         self.assertTrue(c.aland > 10000)
         self.assertTrue(c.awater > 10000)
         self.assertEqual('13067', c.geoid)
-        self.assertIsNotNone(c.county_map)
 
     def test_count(self):
         self.assertEqual(159, County.objects.count())
 
-    def test_geometry(self):
+    def test_map_of(self):
         c = County.objects.get(county_code='033')
-        self.assertTrue(isinstance(c.county_map.geometry, MultiPolygon))
+        cmap = c.map_of.all().first()
+        self.assertIsNotNone(cmap)
 
+    def test_get_map(self):
+        cm = CountyMap.objects.get_map('033')
+        self.assertEqual('COBB', cm.county_name.iloc[0])
+        self.assertEqual('033', cm.county_code.iloc[0])
+        self.assertEqual('067', cm.county_fips.iloc[0])
+
+    def test_state_map(self):
+        sm = CountyMap.objects.state_map
+        self.assertIsNotNone(sm)
+        self.assertEqual(159, len(sm.index))
+
+    def test_count_map(self):
+        self.assertEqual(159, CountyMap.objects.count())
+        self.assertEqual(1, CountyMap.objects.filter(county__county_code='033').count())
+
+    def test_precinct_maps(self):
+        cm = CountyMap.objects.get(county__county_code='033')
+        self.assertIsNotNone(cm.precinct_maps)
