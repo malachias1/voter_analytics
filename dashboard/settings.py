@@ -42,14 +42,13 @@ INSTALLED_APPS = [
     'cng_map',
     'hse_map',
     'sen_map',
-    'county_map',
     'blockgroup_map',
     'vtd_map',
     'voter_history',
     'election_results',
-    'county_details',
-    'voter_demographics',
-    'voter_status',
+    'county',
+    'precinct',
+    'voter',
 ]
 
 MIDDLEWARE = [
