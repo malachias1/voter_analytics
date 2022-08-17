@@ -43,12 +43,12 @@ INSTALLED_APPS = [
     'hse_map',
     'sen_map',
     'blockgroup_map',
-    'vtd_map',
     'voter_history',
     'election_results',
     'county',
     'precinct',
     'voter',
+    'geocode',
 ]
 
 MIDDLEWARE = [

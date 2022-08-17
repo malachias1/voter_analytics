@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class VtdMapConfig(AppConfig):
+class GeocodeConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'vtd_map'
+    name = 'geocode'
