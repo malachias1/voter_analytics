@@ -1,11 +1,11 @@
-import pandas as pd
 from django.db import models
-
-from core.base_fig import BaseMap
-from core.models import BaseMapModel
+import pandas as pd
 import geopandas as gpd
 import re
 from datetime import date
+
+from core.base_fig import BaseMap
+from core.models import BaseMapModel
 
 
 class PrecinctEditionManager(models.Manager):
