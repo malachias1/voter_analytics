@@ -36,8 +36,8 @@ class HseMapTestCase(unittest.TestCase):
         self.assertEqual(1961, v.year_of_birth.iloc[0])
         self.assertEqual('M', v.gender.iloc[0])
 
-    def test_district_vtd_map(self):
-        dmap = self.hd51.district_vtd_map
+    def test_district_precinct_map(self):
+        dmap = self.hd51.district_precinct_map
         self.assertEqual(18, len(dmap.index))
         self.assertIn('RW20', dmap.precinct_short_name.unique())
         self.assertEqual(1, len(dmap.county_code.unique()))
@@ -76,12 +76,12 @@ class HseMapTestCase(unittest.TestCase):
         """
         _ = self.hd51.get_demographics_choropleth('../resources/fig_config/hd51/demographics.json')
 
-    def test_check_vtd_precinct(self):
+    def test_check_precinct(self):
         """
          Just make sure method runs without error.
          :return: None
          """
-        _ = self.hd51.check_vtd_precinct('2022-5-24')
+        _ = self.hd51.check_precincts('2022-5-24')
 
     def test_get_party_tally_choropleth(self):
         """
@@ -94,9 +94,9 @@ class HseMapTestCase(unittest.TestCase):
         config = MapConfig('../resources/fig_config/hd51/primary_demographics.json')
         self.hd51.get_primary_demographics(config)
 
-    def test_get_vtd_choropleth(self):
+    def test_get_precinct_choropleth(self):
         """
          Just make sure method runs without error.
          :return: None
          """
-        _ = self.hd51.get_vtd_choropleth('../resources/fig_config/hd51/precincts.json')
+        _ = self.hd51.get_precinct_choropleth('../resources/fig_config/hd51/precincts.json')

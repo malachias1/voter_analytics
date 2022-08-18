@@ -302,22 +302,6 @@ class OverUnderVote(models.Model):
         }
 
 
-class ElectionResults(models.Model):
-    id = models.IntegerField(primary_key=True)
-    election_date = models.TextField()
-    county_code = models.TextField()
-    contest = models.TextField()
-    choice = models.TextField()
-    party = models.TextField(blank=True, null=True)
-    is_question = models.BooleanField()
-    precinct_name = models.TextField()
-    votes = models.IntegerField()
-
-    class Meta:
-        managed = False
-        db_table = 'election_results'
-
-
 class ElectionResultReaderBase:
     def __init__(self, path):
         path = Path(path).expanduser()

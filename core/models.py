@@ -191,7 +191,7 @@ class DistrictMapModel(BaseMapModel):
         return df.assign(gen=categorize_age(df.year_of_birth))
 
     @property
-    def district_vtd_map(self):
+    def district_precinct_map(self):
         dmap = self.as_geodataframe.drop(columns=['area'])
         vmaps = self.precinct_map
         vmaps = vmaps[['pid', 'county_code', 'precinct_short_name', 'geometry']]
@@ -226,14 +226,14 @@ class DistrictMapModel(BaseMapModel):
     def wkb_crs(self):
         return self.CRS_METERS
 
-    def get_vtd_choropleth(self, config_path):
+    def get_precinct_choropleth(self, config_path):
         self.reset_figure()
         config = MapConfig(config_path)
-        district_vtd_map = self.district_vtd_map
-        gj = json.loads(district_vtd_map.to_json())
-        center = self.centroid(district_vtd_map).iloc[0]
+        district_precinct_map = self.district_precinct_map
+        gj = json.loads(district_precinct_map.to_json())
+        center = self.centroid(district_precinct_map).iloc[0]
         fig = px.choropleth_mapbox(
-            district_vtd_map,
+            district_precinct_map,
             geojson=gj,
             color='precinct_short_name',
             locations='pid',
@@ -253,9 +253,9 @@ class DistrictMapModel(BaseMapModel):
 
     def get_county_precinct_map(self):
         """
-        Return a district map with VTD boundaries. VTDs
+        Return a district map with precinct boundaries. Precincts
         are clipped to the district boundary
-        :return: a geodataframe of a district map with VTD boundaries
+        :return: a geodataframe of a district map with Precinct boundaries
         """
         raise NotImplemented('get_county_precinct_map not implemented!')
 
@@ -345,8 +345,8 @@ class DistrictMapModel(BaseMapModel):
         df = df.assign(r_affinity=df.r_ballots / (df.r_ballots + df.d_ballots) * 100,
                        d_affinity=df.d_ballots / (df.r_ballots + df.d_ballots) * 100)
         df = df.assign(r_affinity1=df.r_affinity)
-        district_vtd_map = self.district_vtd_map
-        gdf = district_vtd_map.merge(df, on='precinct_short_name', how='inner')
+        district_precinct_map = self.district_precinct_map
+        gdf = district_precinct_map.merge(df, on='precinct_short_name', how='inner')
         gj = json.loads(gdf.to_json())
         center = self.centroid(gdf).iloc[0]
         fig = px.choropleth_mapbox(
@@ -395,8 +395,8 @@ class DistrictMapModel(BaseMapModel):
 
     def get_demographics_choropleth_for_data(self, df, config):
         self.reset_figure()
-        district_vtd_map = self.district_vtd_map
-        gdf = district_vtd_map.merge(df, on='precinct_short_name', how='inner')
+        district_precinct_map = self.district_precinct_map
+        gdf = district_precinct_map.merge(df, on='precinct_short_name', how='inner')
         gj = json.loads(gdf.to_json())
         center = self.centroid(gdf).iloc[0]
         fig = px.choropleth_mapbox(
@@ -418,13 +418,13 @@ class DistrictMapModel(BaseMapModel):
         self.add_margin(fig)
         return fig
 
-    def check_vtd_precinct(self, election_date):
-        vtd_names = set(self.district_vtd_map.precinct_short_name.unique())
-        print(vtd_names)
+    def check_precincts(self, election_date):
+        map_precinct_names = set(self.district_precinct_map.precinct_short_name.unique())
+        print(map_precinct_names)
         details = self.get_election_result_details(election_date)
-        precincts = set(details.precinct_short_name.unique())
-        print(precincts)
-        missing = precincts - vtd_names
+        election_precincts = set(details.precinct_short_name.unique())
+        print(election_precincts)
+        missing = election_precincts - map_precinct_names
         print(missing)
         votes = defaultdict(int)
         missing_details = details[details.precinct_short_name.isin(missing)]
