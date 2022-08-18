@@ -75,6 +75,10 @@ class ResidenceAddress(models.Model):
     zipcode = models.CharField(max_length=5, blank=True, null=True)
     plus4 = models.CharField(max_length=4, blank=True, null=True)
 
+    @property
+    def street(self):
+        return f'{self.house_number} {self.street_name}'
+
 
 class VoterManager(models.Manager):
     def active(self):
@@ -110,6 +114,10 @@ class Voter(models.Model):
     precinct_id_text = models.CharField(max_length=16)
 
     objects = VoterManager()
+
+    @property
+    def address(self):
+        return self.residence_address_of.first()
 
     class Meta:
         indexes = [
