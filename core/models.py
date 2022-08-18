@@ -153,6 +153,11 @@ class DistrictMapModel(BaseMapModel):
         return record
 
     @property
+    def center(self):
+        dmap = self.as_geodataframe
+        return self.centroid(dmap).iloc[0]
+
+    @property
     def counties(self):
         """
         Get a list of county_codes that this district overlaps.
@@ -231,7 +236,7 @@ class DistrictMapModel(BaseMapModel):
         config = MapConfig(config_path)
         district_precinct_map = self.district_precinct_map
         gj = json.loads(district_precinct_map.to_json())
-        center = self.centroid(district_precinct_map).iloc[0]
+        center = self.center
         fig = px.choropleth_mapbox(
             district_precinct_map,
             geojson=gj,
@@ -240,14 +245,15 @@ class DistrictMapModel(BaseMapModel):
             featureidkey="properties.pid",
             center={"lat": center.y, "lon": center.x},
             opacity=0.5,
-            mapbox_style="open-street-map", zoom=12,
+            mapbox_style="open-street-map", zoom=11,
             labels=config.labels,
             hover_data=config.hover_data
         )
 
         self.add_watermark(fig)
-        self.configure_legend(fig)
+        # self.configure_legend(fig)
         self.add_logo(fig, config)
+        self.add_legend_text(fig, config.description)
         self.add_margin(fig)
         return fig
 
