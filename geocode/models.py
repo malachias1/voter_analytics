@@ -5,9 +5,9 @@ from county.models import County
 
 
 class AddressManager(models.Manager):
-    def get_addresses_for_counties(self, counties):
+    def get_addresses_for_counties(self, county_codes):
         return pd.DataFrame.from_records(
-            [a.as_record for a in self.filter(county__in=counties)]
+            [a.as_record for a in self.filter(county__county_code__in=county_codes)]
         )
 
 
@@ -48,3 +48,7 @@ class Address(models.Model):
     @property
     def key(self):
         return f'{self.street}, {self.city} {self.state} {self.zipcode}'
+
+    @classmethod
+    def make_key(cls, address):
+        return f'{address.house_number} {address.street_name}, {address.city} {address.state} {address.zipcode}'
