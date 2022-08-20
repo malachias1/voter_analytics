@@ -277,7 +277,7 @@ class DistrictMapModel(BaseMapModel):
         return df
 
     @classmethod
-    def collapse_precincts(cls, df, config):
+    def fold_precincts(cls, df, config):
         for r in config.drop:
             df = df.drop(r, errors='ignore')
         df = df.assign(precinct_short_name=df.precinct_short_name.apply(lambda x: config.combine.get(x, x)))
@@ -285,11 +285,21 @@ class DistrictMapModel(BaseMapModel):
 
     @classmethod
     def get_party_demographics(cls, df, party):
+        """
+        Summarize by precinct the demograpics of those
+        voters participating in the given party's primary.
+        The dataframe inclides the following information:
+        precinct_short_name, race_id, gender, year_of_birth,
+        and party.
+        :param df: a dataframe
+        :param party: R or D
+        :return: precinct demographics
+        """
         df = df[df.party == party]
-        df_age = df.assign(age=(2022 - df.year_of_birth))
-        df_age = df_age[['precinct_short_name', 'age']].groupby(['precinct_short_name'], as_index=False).median()
-        df_sum = PrecinctSegmentation.summarize(df, 2022)
-        df = df_age.merge(df_sum, on='precinct_short_name', how='inner')
+        # TODO Assume it is 2022 make this configurable.
+        df = PrecinctSegmentation().summarize(df, 2022)
+        # prefix column names with party -- expect
+        # to do this twice, once for each party
         columns = list(df.columns)
         columns.remove('precinct_short_name')
         columns = {x: x + f'_{party.lower()}' for x in columns}
@@ -297,25 +307,62 @@ class DistrictMapModel(BaseMapModel):
         return df
 
     def get_primary_demographics(self, config):
+        """
+        Summarize demographics of primary participants
+        by precinct and party.
+        :param config: a configuration
+        :return: demographics of primary participants
+        by precinct and party
+        """
+        # TODO voter history is still based on voter_id
         voters = [x.voter_id for x in self.voters]
+        # Just need party
         vh = VoterHistory.objects.get_for(config.date, voters)[['voter_id', 'party']]
+        # Get voter demographics and merge with history
+        # The data frame will have voter_id, precinct_short_name,
+        # race_id, gender, year_of_birth, and party
         df_orig = self.demographics
         df_orig = df_orig.merge(vh, on='voter_id', how='inner')
-        df_orig = self.collapse_precincts(df_orig, config)
+        # Fold unmapped precincts into mapped precincts.
+        # I don't recognise some precincts. It may be
+        # an issue of multiple polling places per
+        # precinct.
+        # TODO investigate missing precincts
+        df_orig = self.fold_precincts(df_orig, config)
+        # Get demographics for each party and merge into
+        # a single data frame. Add the median age for
+        # all participants.
         df_r = self.get_party_demographics(df_orig, 'R')
         df_d = self.get_party_demographics(df_orig, 'D')
         df = df_r.merge(df_d, on='precinct_short_name', how='inner')
         df_age = df_orig.assign(age=(2022 - df_orig.year_of_birth))
         df_age = df_age[['precinct_short_name', 'age']].groupby(['precinct_short_name'], as_index=False).median()
         df = df_age.merge(df, on='precinct_short_name', how='inner')
+        # Compute total participants.
+        # TODO Use hovertemplate and get rid of total_rd1
         df = df.assign(total_rd=df.total_r - df.total_d)
         df = df.assign(total_rd1=df.total_rd)
         return df
 
     def get_party_tally(self, config: MapConfig):
+        """
+        Summarize party tally by precinct. Party
+        is just Republicans and Democrats.
+        :param config:
+        :return:
+        """
+        # Get the election results for the specified
+        # election date.
         election_date = config.date
         df = self.get_election_result_details(election_date)
-        df = self.collapse_precincts(df, config)
+        # Fold unmapped precincts into mapped precincts.
+        # I don't recognise some precincts. It may be
+        # an issue of multiple polling places per
+        # precinct.
+        # TODO investigate missing precincts
+        df = self.fold_precincts(df, config)
+        # Sum votes by party and then pivot to create
+        # a column for each party.
         df = df.groupby(['party', 'precinct_short_name'], as_index=False)['votes'].sum()
         df = df.pivot(index='precinct_short_name', columns='party', values='votes').reset_index()
         df.columns.name = None
@@ -323,6 +370,11 @@ class DistrictMapModel(BaseMapModel):
         return df
 
     def get_undervote(self, config):
+        """
+        Summarize the undervote by precinct.
+        :param config: a configuration
+        :return: a data frame
+        """
         election_date = config.date
         contest_mappings = config.contest_mappings
         df = self.get_election_result_details(election_date)
@@ -330,7 +382,7 @@ class DistrictMapModel(BaseMapModel):
         df = OverUnderVote.objects.get_for_contests(contests)
         df = df.assign(contest=df.contest.apply(lambda x: contest_mappings.get(x) if x in contest_mappings else x))
         df = df.pivot(index='precinct_short_name', columns='contest', values='undervotes').reset_index()
-        df = self.collapse_precincts(df, config)
+        df = self.fold_precincts(df, config)
         df = df.groupby(['precinct_short_name'], as_index=False).sum()
         df.index.name = None
         return df
@@ -354,7 +406,7 @@ class DistrictMapModel(BaseMapModel):
         district_precinct_map = self.district_precinct_map
         gdf = district_precinct_map.merge(df, on='precinct_short_name', how='inner')
         gj = json.loads(gdf.to_json())
-        center = self.centroid(gdf).iloc[0]
+        center = self.center
         fig = px.choropleth_mapbox(
             gdf,
             geojson=gj,
@@ -364,7 +416,7 @@ class DistrictMapModel(BaseMapModel):
             center={"lat": center.y, "lon": center.x},
             opacity=0.5,
             mapbox_style="open-street-map",
-            zoom=12,
+            zoom=11,
             labels=config.labels,
             hover_data=config.hover_data,
             color_continuous_scale='Plasma'
@@ -389,7 +441,7 @@ class DistrictMapModel(BaseMapModel):
     def get_demographics_choropleth(self, config_path):
         config = MapConfig(config_path)
         df = self.demographics
-        df = self.collapse_precincts(df, config)
+        df = self.fold_precincts(df, config)
         df = PrecinctSegmentation.summarize(df, 2022)
         df = df.assign(s_b_gx1=df.s_b_gx)
         return self.get_demographics_choropleth_for_data(df, config)
