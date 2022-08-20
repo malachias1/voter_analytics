@@ -41,8 +41,6 @@ class PrimaryTrendsChart:
                          text='precinct_short_name',
                          color="a1",
                          size='total',
-                         # width=1280,
-                         # height=720,
                          labels={
                              'precinct_short_name': 'Precinct',
                              'total': 'Total Primary Participants',
