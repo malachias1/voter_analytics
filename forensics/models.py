@@ -106,7 +106,7 @@ class SplitTicketAnalysis(BaseMap):
             center={"lat": center.y, "lon": center.x},
             opacity=0.5,
             mapbox_style="open-street-map",
-            zoom=5.5,
+            zoom=6.25,
             labels=self.config.labels,
             hover_data=self.config.hover_data,
             color_discrete_sequence=px.colors.sequential.Plasma
